@@ -60,3 +60,5 @@
 #import <ResearchKit/ORKRecorder.h>
 #import <ResearchKit/ORKActiveStep.h>
 #import <ResearchKit/ORKActiveStepViewController.h>
+
+#import <ResearchKit/ORKPreUploadDataStore.h>

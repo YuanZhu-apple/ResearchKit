@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		335418E91B118EAD00A38F5E /* SAMPLE_PDF_TEST.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 335418E81B118EAD00A38F5E /* SAMPLE_PDF_TEST.pdf */; };
+		8636279A1B4A32E30059A500 /* ORKDataStoreTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 863627991B4A32E30059A500 /* ORKDataStoreTests.m */; };
 		86717A901AC0C0FE00AC2A23 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 86717A8F1AC0C0FE00AC2A23 /* main.m */; };
 		86717A931AC0C0FE00AC2A23 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 86717A921AC0C0FE00AC2A23 /* AppDelegate.m */; };
 		86717A9B1AC0C0FE00AC2A23 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 86717A9A1AC0C0FE00AC2A23 /* Images.xcassets */; };
@@ -79,6 +80,7 @@
 
 /* Begin PBXFileReference section */
 		335418E81B118EAD00A38F5E /* SAMPLE_PDF_TEST.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = SAMPLE_PDF_TEST.pdf; sourceTree = "<group>"; };
+		863627991B4A32E30059A500 /* ORKDataStoreTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ORKDataStoreTests.m; sourceTree = "<group>"; };
 		86717A8A1AC0C0FE00AC2A23 /* ORKTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ORKTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		86717A8E1AC0C0FE00AC2A23 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		86717A8F1AC0C0FE00AC2A23 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
@@ -215,6 +217,7 @@
 				86717AD81AC0C53800AC2A23 /* ORKESerialization.m */,
 				86717AFC1AC0C86000AC2A23 /* ORKJSONSerializationTests.m */,
 				86717AA71AC0C0FE00AC2A23 /* Supporting Files */,
+				863627991B4A32E30059A500 /* ORKDataStoreTests.m */,
 			);
 			path = ORKTestTests;
 			sourceTree = "<group>";
@@ -454,6 +457,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8636279A1B4A32E30059A500 /* ORKDataStoreTests.m in Sources */,
 				86717AFD1AC0C86000AC2A23 /* ORKJSONSerializationTests.m in Sources */,
 				86717AFE1AC0C8BC00AC2A23 /* ORKESerialization.m in Sources */,
 			);
@@ -553,6 +557,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -588,6 +593,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
