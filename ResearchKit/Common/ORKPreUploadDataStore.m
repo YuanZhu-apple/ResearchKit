@@ -55,6 +55,98 @@ if (errorOut) { \
     return nil; \
 }
 
+static NSString const *ItemUploadedKey = @"uploaded";
+static NSString const *ItemRetryCountKey = @"retryCount";
+static NSString const *ItemRetryDateKey = @"retryDate";
+static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
+
+@implementation ORKUploadableItemTracker {
+    __weak ORKUploadableItem *_item;
+    dispatch_queue_t _queue;
+}
+
+- (instancetype)initWithUploadableItem:(ORKUploadableItem *)uploadableItem {
+    NSParameterAssert(uploadableItem);
+    self = [super init];
+    if (self) {
+        _item = uploadableItem;
+    }
+    return self;
+}
+
+- (NSDictionary *)infoDictionary {
+    return [NSDictionary dictionaryWithContentsOfFile:[self pathOfFile:kFileInfo]];
+}
+
+- (NSString *)pathOfFile:(NSString *)fileName {
+    return [_item.directoryURL.path stringByAppendingPathComponent:fileName];
+}
+
+- (dispatch_queue_t)queue {
+    if (_queue == nil) {
+        NSString *queueId = [ItemQueuePrefix stringByAppendingString:_item.identifier];
+        _queue = dispatch_queue_create([queueId cStringUsingEncoding:NSUTF8StringEncoding], DISPATCH_QUEUE_SERIAL);
+    }
+    return _queue;
+}
+
+- (BOOL)isUploaded {
+    NSNumber *value = [self infoDictionary][ItemUploadedKey];
+    return value? value.boolValue : NO;
+}
+
+- (void)markUploaded {
+    
+    dispatch_sync(self.queue, ^{
+        [self queue_markUploaded];
+    });
+}
+
+- (void)queue_markUploaded {
+    NSMutableDictionary *dictionary = [NSMutableDictionary dictionaryWithDictionary:[self infoDictionary]];
+    dictionary[ItemUploadedKey] = @(YES);
+    dictionary[ItemRetryDateKey] = [NSDate date];
+    [dictionary writeToFile:[self pathOfFile:kFileInfo] atomically:YES];
+}
+
+- (NSUInteger)retryCount {
+    NSNumber *value = [self infoDictionary][ItemRetryCountKey];
+    return value? value.unsignedIntegerValue : 0;
+}
+
+- (NSDate *)lastUploadDate {
+    NSDate *value = [self infoDictionary][ItemRetryDateKey];
+    return value;
+}
+
+- (void)increaseRetryCount {
+    
+    dispatch_sync(self.queue, ^{
+        [self queue_increaseRetryCount];
+    });
+}
+
+- (void)queue_increaseRetryCount {
+    
+    if (self.uploaded) {
+        return;
+    }
+    
+    NSMutableDictionary *dictionary = [NSMutableDictionary dictionaryWithDictionary:[self infoDictionary]];
+    NSNumber *count = dictionary[ItemRetryCountKey];
+    if (count == nil) {
+        count = @(1);
+    } else {
+        count = @(count.integerValue + 1);
+    }
+    dictionary[ItemRetryDateKey] = [NSDate date];
+    dictionary[ItemRetryCountKey] = count;
+    [dictionary writeToFile:[self pathOfFile:kFileInfo] atomically:YES];
+    
+}
+
+@end
+
 // inner class
 @interface ORKDataStoreFileMovingCandidate : NSObject
 
@@ -117,7 +209,7 @@ if (errorOut) { \
 @end
 
 
-@interface ORKPreUploadDataItem ()
+@interface ORKUploadableItem ()
 
 - (instancetype)initWithItemDirectoy:(NSURL *)directory;
 
@@ -127,9 +219,10 @@ if (errorOut) { \
 
 @end
 
-@implementation ORKPreUploadDataItem {
+@implementation ORKUploadableItem {
     dispatch_queue_t _queue;
     NSDate *_creationDate;
+    ORKUploadableItemTracker *_tracker;
 }
 
 - (instancetype)initWithItemDirectoy:(NSURL *)directoryURL {
@@ -168,10 +261,6 @@ if (errorOut) { \
     return [self.directoryURL.path stringByAppendingPathComponent:fileName];
 }
 
-- (NSDictionary *)infoDictionary {
-    return [NSDictionary dictionaryWithContentsOfFile:[self pathOfFile:kFileInfo]];
-}
-
 - (ORKPreUploadDataItemType)itemType {
     NSFileManager *defaultManager = [NSFileManager defaultManager];
     
@@ -192,13 +281,22 @@ if (errorOut) { \
 
 - (dispatch_queue_t)queue {
     if (_queue == nil) {
-        NSString *queueId = [@"ResearchKit.PreUploadDataItem." stringByAppendingString:self.identifier];
+        NSString *queueId = [ItemQueuePrefix stringByAppendingString:self.identifier];
         _queue = dispatch_queue_create([queueId cStringUsingEncoding:NSUTF8StringEncoding], DISPATCH_QUEUE_SERIAL);
     }
     return _queue;
 }
 
 #pragma mark - Managed Attribute
+
+- (ORKUploadableItemTracker *)tracker {
+    
+    if (_tracker == nil) {
+        _tracker = [[ORKUploadableItemTracker alloc] initWithUploadableItem:self];
+    }
+    
+    return _tracker;
+}
 
 - (NSDictionary *)metadata {
     return [NSDictionary dictionaryWithContentsOfFile:[self pathOfFile:kFileMetadata]];
@@ -238,65 +336,6 @@ if (errorOut) { \
         NSLog(@"%@", dirContents);
     }
     return dirContents.firstObject;
-}
-
-static NSString const *kDataItemUploadedKey = @"uploaded";
-static NSString const *kDataItemRetryCountKey = @"retryCount";
-static NSString const *kDataItemRetryDateKey = @"retryDate";
-
-- (BOOL)isUploaded {
-    NSNumber *value = [self infoDictionary][kDataItemUploadedKey];
-    return value? value.boolValue : NO;
-}
-
-- (void)markUploaded {
-   
-    dispatch_sync(self.queue, ^{
-        [self queue_markUploaded];
-    });
-}
-
-- (void)queue_markUploaded {
-    NSMutableDictionary *dictionary = [NSMutableDictionary dictionaryWithDictionary:[self infoDictionary]];
-    dictionary[kDataItemUploadedKey] = @(YES);
-    dictionary[kDataItemRetryDateKey] = [NSDate date];
-    [dictionary writeToFile:[self pathOfFile:kFileInfo] atomically:YES];
-}
-
-- (NSUInteger)retryCount {
-    NSNumber *value = [self infoDictionary][kDataItemRetryCountKey];
-    return value? value.unsignedIntegerValue : 0;
-}
-
-- (NSDate *)lastUploadDate {
-    NSDate *value = [self infoDictionary][kDataItemRetryDateKey];
-    return value;
-}
-
-- (void)increaseRetryCount {
-    
-    dispatch_sync(self.queue, ^{
-        [self queue_increaseRetryCount];
-    });
-}
-
-- (void)queue_increaseRetryCount {
-    
-    if (self.uploaded) {
-        return;
-    }
-    
-    NSMutableDictionary *dictionary = [NSMutableDictionary dictionaryWithDictionary:[self infoDictionary]];
-    NSNumber *count = dictionary[kDataItemRetryCountKey];
-    if (count == nil) {
-        count = @(1);
-    } else {
-        count = @(count.integerValue + 1);
-    }
-    dictionary[kDataItemRetryDateKey] = [NSDate date];
-    dictionary[kDataItemRetryCountKey] = count;
-    [dictionary writeToFile:[self pathOfFile:kFileInfo] atomically:YES];
-    
 }
 
 - (NSDate *)creationDate {
@@ -452,7 +491,7 @@ static NSString const *kDataItemRetryDateKey = @"retryDate";
     if (metadata) {
         // Save plist to disk
         NSString *metaPath = [itemPath stringByAppendingPathComponent:kFileMetadata];
-        errorOut = [ORKPreUploadDataItem saveDictionary:metadata to:metaPath];;
+        errorOut = [ORKUploadableItem saveDictionary:metadata to:metaPath];;
         ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier);
     }
     
@@ -539,14 +578,14 @@ static NSString const *kDataItemRetryDateKey = @"retryDate";
         // Save result object
         NSData *resultData = [NSKeyedArchiver archivedDataWithRootObject:result];
         NSString *resultDataPath = [itemPath stringByAppendingPathComponent:kFileResult];
-        errorOut = [ORKPreUploadDataItem saveData:resultData to:resultDataPath];
+        errorOut = [ORKUploadableItem saveData:resultData to:resultDataPath];
         ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier);
     }
     
     // Handle NSData
     if (data) {
         NSString *dataPath = [itemPath stringByAppendingPathComponent:kFileData];
-        errorOut = [ORKPreUploadDataItem saveData:data to:dataPath];
+        errorOut = [ORKUploadableItem saveData:data to:dataPath];
         ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier);
     }
     
@@ -678,21 +717,21 @@ static NSString const *kDataItemRetryDateKey = @"retryDate";
             continue;
         }
         
-        ORKPreUploadDataItem *item = [[ORKPreUploadDataItem alloc] initWithItemDirectoy:url];
-        
-        if ( (exclusionOption & ORKDataStoreExclusionOptionUploadedItems) && item.isUploaded) {
+        ORKUploadableItem *item = [[ORKUploadableItem alloc] initWithItemDirectoy:url];
+        ORKUploadableItemTracker *tracker = item.tracker;
+        if ( (exclusionOption & ORKDataStoreExclusionOptionUploadedItems) && tracker.isUploaded) {
             continue;
         }
         
-        if ( (exclusionOption & ORKDataStoreExclusionOptionUnuploadedItems) && item.isUploaded == NO) {
+        if ( (exclusionOption & ORKDataStoreExclusionOptionUnuploadedItems) && tracker.isUploaded == NO) {
             continue;
         }
         
-        if ( (exclusionOption & ORKDataStoreExclusionOptionTriedItems) && item.retryCount > 0) {
+        if ( (exclusionOption & ORKDataStoreExclusionOptionTriedItems) && tracker.retryCount > 0) {
             continue;
         }
 
-        if ( (exclusionOption & ORKDataStoreExclusionOptionUntriedItems) && item.retryCount == 0) {
+        if ( (exclusionOption & ORKDataStoreExclusionOptionUntriedItems) && tracker.retryCount == 0) {
             continue;
         }
 
@@ -701,7 +740,7 @@ static NSString const *kDataItemRetryDateKey = @"retryDate";
     
     if (! errorOut) {
         // Sort the URLs before beginning enumeration for the caller
-        [items sortUsingComparator:^NSComparisonResult(ORKPreUploadDataItem *item1, ORKPreUploadDataItem *item2) {
+        [items sortUsingComparator:^NSComparisonResult(ORKUploadableItem *item1, ORKUploadableItem *item2) {
             // We can assume all relate to files in the same directory
             
             NSComparisonResult result = NSOrderedSame;
@@ -709,9 +748,9 @@ static NSString const *kDataItemRetryDateKey = @"retryDate";
             if (sortingOption  == ORKDataStoreSortingOptionByCreationDate ) {
                 result = [item1.creationDate compare:item2.creationDate];
             } else if (sortingOption  == ORKDataStoreSortingOptionByLastUploadDate ) {
-                result = [item1.lastUploadDate compare:item2.lastUploadDate];
+                result = [item1.tracker.lastUploadDate compare:item2.tracker.lastUploadDate];
             } else if (sortingOption  == ORKDataStoreSortingOptionByRetryCount ) {
-                result = [@(item1.retryCount) compare:@(item2.retryCount)];
+                result = [@(item1.tracker.retryCount) compare:@(item2.tracker.retryCount)];
             }
             
             if (ascending == NO) {
@@ -725,7 +764,7 @@ static NSString const *kDataItemRetryDateKey = @"retryDate";
             return result;
         }];
         
-        for (ORKPreUploadDataItem *item in items) {
+        for (ORKUploadableItem *item in items) {
             BOOL stop = NO;
             
             block(item, &stop);
@@ -743,12 +782,12 @@ static NSString const *kDataItemRetryDateKey = @"retryDate";
 
 
 
-- (ORKPreUploadDataItem *)dataItemForIdentifier:(NSString *)identifier {
+- (ORKUploadableItem *)dataItemForIdentifier:(NSString *)identifier {
 
     NSString *path = [self directoryPathForIdentifier:identifier];
     BOOL exist = [[NSFileManager defaultManager] fileExistsAtPath:path];
     
-    return exist? [[ORKPreUploadDataItem alloc] initWithItemDirectoy:[NSURL fileURLWithPath:path]] : nil;
+    return exist? [[ORKUploadableItem alloc] initWithItemDirectoy:[NSURL fileURLWithPath:path]] : nil;
 }
 
 - (NSError *)removeDataItemWithIdentifier:(NSString *)identifier {

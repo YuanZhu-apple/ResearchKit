@@ -58,25 +58,53 @@ NS_ASSUME_NONNULL_BEGIN
 
 typedef void (^ORKDataStoreFilesEnumerationBlock)(NSURL *fileURL, BOOL *stop);
 
-@interface ORKPreUploadDataItem : NSObject
+@class ORKUploadableItemTracker;
+
+@interface ORKUploadableItem : NSObject
 
 @property (nonatomic, copy, readonly) NSString *identifier;
 
 @property (nonatomic, copy, readonly) NSURL *directoryURL;
 
-@property (nonatomic, assign, readonly) ORKPreUploadDataItemType itemType;
+//@property (nonatomic, assign, readonly) ORKPreUploadDataItemType itemType;
 
-@property (nonatomic, copy, readonly) NSURL * __nullable fileURL;
-
-@property (nonatomic, copy, readonly) NSDictionary *metadata;                       //lazy loading
+@property (nonatomic, copy, readonly) NSDictionary *metadata;
 
 - (NSError *)setMetadata:(NSDictionary *)metadata;
 
-@property (nonatomic, strong, readonly) ORKTaskResult * __nullable result;          //lazy loading
+@property (nonatomic, readonly) NSDate * __nullable creationDate;             // Standard File Attributes
 
-@property (nonatomic, strong, readonly) NSData *data;                               //lazy loading
+- (BOOL)enumerateManagedFiles:(ORKDataStoreFilesEnumerationBlock)block error:(NSError * __autoreleasing *)error;
 
-@property (nonatomic, assign, readonly, getter=isUploaded) BOOL uploaded;   
+@property (nonatomic, readonly) ORKUploadableItemTracker *tracker;
+
+@end
+
+@interface ORKUploadableDataItem : ORKUploadableItem
+
+@property (nonatomic, strong, readonly) NSData *data;
+
+@end
+
+@interface ORKUploadableResultItem : ORKUploadableItem
+
+@property (nonatomic, strong, readonly) ORKTaskResult * __nullable result;
+
+@end
+
+@interface ORKUploadableFileItem : ORKUploadableItem
+
+@property (nonatomic, copy, readonly) NSURL * __nullable fileURL;
+
+@property (nonatomic, readonly, getter=isDirectory) BOOL directory;
+
+@end
+
+@interface ORKUploadableItemTracker : NSObject
+
+- (instancetype)initWithUploadableItem:(ORKUploadableItem *)uploadableItem;
+
+@property (nonatomic, assign, readonly, getter=isUploaded) BOOL uploaded;
 
 - (void)markUploaded;
 
@@ -86,11 +114,9 @@ typedef void (^ORKDataStoreFilesEnumerationBlock)(NSURL *fileURL, BOOL *stop);
 
 @property (nonatomic, readonly) NSDate * __nullable lastUploadDate;
 
-@property (nonatomic, readonly) NSDate * __nullable creationDate;             // Standard File Attributes
-
-- (BOOL)enumerateManagedFiles:(ORKDataStoreFilesEnumerationBlock)block error:(NSError * __autoreleasing *)error;
-
 @end
+
+
 
 @class ORKPreUploadDataStore;
 
@@ -101,7 +127,7 @@ typedef void (^ORKDataStoreFilesEnumerationBlock)(NSURL *fileURL, BOOL *stop);
 @end
 
 
-typedef void (^ORKDataStoreEnumerationBlock)(ORKPreUploadDataItem *dataItem, BOOL *stop);
+typedef void (^ORKDataStoreEnumerationBlock)(ORKUploadableItem *dataItem, BOOL *stop);
 
 @interface ORKPreUploadDataStore : NSObject
 
@@ -124,7 +150,7 @@ typedef void (^ORKDataStoreEnumerationBlock)(ORKPreUploadDataItem *dataItem, BOO
  */
 - (NSString *)addFileURL:(NSURL *)fileURL metadata:(nullable NSDictionary *)metadata error:(NSError * __autoreleasing *)error;
 
-- (ORKPreUploadDataItem *)dataItemForIdentifier:(NSString *)identifier;
+- (ORKUploadableItem *)dataItemForIdentifier:(NSString *)identifier;
 
 - (NSError *)removeDataItemWithIdentifier:(NSString *)identifer;
 
