@@ -96,6 +96,7 @@ typedef NS_ENUM(NSInteger, ORKNumberFormattingStyle) {
 
 @class ORKScaleAnswerFormat;
 @class ORKContinuousScaleAnswerFormat;
+@class ORKTextScaleAnswerFormat;
 @class ORKValuePickerAnswerFormat;
 @class ORKImageChoiceAnswerFormat;
 @class ORKTextChoiceAnswerFormat;
@@ -104,7 +105,11 @@ typedef NS_ENUM(NSInteger, ORKNumberFormattingStyle) {
 @class ORKTimeOfDayAnswerFormat;
 @class ORKDateAnswerFormat;
 @class ORKTextAnswerFormat;
+@class ORKEmailAnswerFormat;
 @class ORKTimeIntervalAnswerFormat;
+
+@class ORKTextChoice;
+@class ORKImageChoice;
 
 
 /**
@@ -159,14 +164,18 @@ ORK_CLASS_AVAILABLE
                                                         maximumValueDescription:(nullable NSString *)maximumValueDescription
                                                         minimumValueDescription:(nullable NSString *)minimumValueDescription;
 
++ (ORKTextScaleAnswerFormat *)textScaleAnswerFormatWithTextChoices:(NSArray <ORKTextChoice *> *)textChoices
+                                                      defaultIndex:(NSInteger)defaultIndex
+                                                          vertical:(BOOL)vertical;
+
 + (ORKBooleanAnswerFormat *)booleanAnswerFormat;
 
-+ (ORKValuePickerAnswerFormat *)valuePickerAnswerFormatWithTextChoices:(NSArray *)textChoices;
++ (ORKValuePickerAnswerFormat *)valuePickerAnswerFormatWithTextChoices:(NSArray<ORKTextChoice *> *)textChoices;
 
-+ (ORKImageChoiceAnswerFormat *)choiceAnswerFormatWithImageChoices:(NSArray *)imageChoices;
++ (ORKImageChoiceAnswerFormat *)choiceAnswerFormatWithImageChoices:(NSArray<ORKImageChoice *> *)imageChoices;
 
 + (ORKTextChoiceAnswerFormat *)choiceAnswerFormatWithStyle:(ORKChoiceAnswerStyle)style
-                                               textChoices:(NSArray *)textChoices;
+                                               textChoices:(NSArray<ORKTextChoice *> *)textChoices;
 
 + (ORKNumericAnswerFormat *)decimalAnswerFormatWithUnit:(nullable NSString *)unit;
 + (ORKNumericAnswerFormat *)integerAnswerFormatWithUnit:(nullable NSString *)unit;
@@ -188,6 +197,8 @@ ORK_CLASS_AVAILABLE
 
 + (ORKTextAnswerFormat *)textAnswerFormat;
 + (ORKTextAnswerFormat *)textAnswerFormatWithMaximumLength:(NSInteger)maximumLength;
+
++ (ORKEmailAnswerFormat *)emailAnswerFormat;
 
 + (ORKTimeIntervalAnswerFormat *)timeIntervalAnswerFormat;
 + (ORKTimeIntervalAnswerFormat *)timeIntervalAnswerFormatWithDefaultInterval:(NSTimeInterval)defaultInterval step:(NSInteger)step;
@@ -214,6 +225,8 @@ ORK_CLASS_AVAILABLE
  */
 ORK_CLASS_AVAILABLE
 @interface ORKScaleAnswerFormat : ORKAnswerFormat
+
+- (instancetype)init NS_UNAVAILABLE;
 
 /**
  Returns an initialized scale answer format using the specified values.
@@ -322,6 +335,18 @@ ORK_CLASS_AVAILABLE
  */
 @property (readonly, nullable) NSString *minimumValueDescription;
 
+/**
+ An image for the upper bound of the slider. The recommended image size is 30 x 30 points.
+ The maximum range label will not be visible.
+ */
+@property (strong, nullable) UIImage *maximumImage;
+
+/**
+ An image for the lower bound of the slider. The recommended image size is 30 x 30 points.
+ The minimum range label will not be visible.
+ */
+@property (strong, nullable) UIImage *minimumImage;
+
 @end
 
 
@@ -333,6 +358,8 @@ ORK_CLASS_AVAILABLE
  */
 ORK_CLASS_AVAILABLE
 @interface ORKContinuousScaleAnswerFormat : ORKAnswerFormat
+
+- (instancetype)init NS_UNAVAILABLE;
 
 /**
  Returns an initialized continuous scale answer format using the specified values.
@@ -438,6 +465,78 @@ ORK_CLASS_AVAILABLE
  */
 @property (readonly, nullable) NSString *minimumValueDescription;
 
+/**
+ An image for the upper bound of the slider. The recommended image size is 30 x 30 points.
+ The maximum range label will not be visible.
+ */
+@property (strong, nullable) UIImage *maximumImage;
+
+/**
+ An image for the lower bound of the slider. The recommended image size is 30 x 30 points.
+ The minimum range label will not be visible.
+ */
+@property (strong, nullable) UIImage *minimumImage;
+
+@end
+
+
+/**
+ The `ORKTextScaleAnswerFormat` represents an answer format that includes a discrete slider control with a text label next to each step.
+ 
+ The scale answer format produces an `ORKScaleQuestionResult` object that contains a number whose value is the selected slider value.
+ */
+ORK_CLASS_AVAILABLE
+@interface ORKTextScaleAnswerFormat : ORKAnswerFormat
+
+- (instancetype)init NS_UNAVAILABLE;
+
+/**
+ Returns an initialized text scale answer format using the specified values.
+ 
+ This method is the designated initializer.
+ 
+ @param textChoices                 An array of text choices which will be used to determine the number of steps in the slider, and         
+                                    to fill the text label next to each of the steps. The array must contain between 2 and 8 text choices.
+ @param defaultValue                The default index of the scale. If this value is out of range, the slider is displayed without a default value.
+ @param vertical                    Pass `YES` to use a vertical scale; for the default horizontal scale, pass `NO`.
+ 
+ @return An initialized text scale answer format.
+ */
+- (instancetype)initWithTextChoices:(NSArray<ORKTextChoice *> *)textChoices
+                       defaultIndex:(NSInteger)defaultIndex
+                           vertical:(BOOL)vertical NS_DESIGNATED_INITIALIZER;
+
+/**
+ Returns an initialized text scale answer format using the specified values.
+ 
+ This method is a convenience initializer.
+ 
+ @param textChoices                 An array of text choices which will be used to determine the number of steps in the slider, and
+                                    to fill the text label next to each of the steps. The array must contain between 2 and 8 text choices.
+ @param defaultValue                The default index of the scale. If this value is out of range, the slider is displayed without a default value.
+ 
+ @return An initialized text scale answer format.
+ */
+- (instancetype)initWithTextChoices:(NSArray<ORKTextChoice *> *)textChoices
+                       defaultIndex:(NSInteger)defaultIndex;
+
+/**
+ An array of text choices which provides the text to be shown next to each of the slider steps. (read-only)
+ */
+@property (copy, readonly) NSArray<ORKTextChoice *> *textChoices;
+
+/**
+ The default index for the slider. (read-only)
+ 
+ If the value of this property is less than zero or greater than the number of text choices, the slider has no default value.
+ */
+@property (readonly) NSInteger defaultIndex;
+
+/**
+ A Boolean value indicating whether the scale is oriented vertically. (read-only)
+ */
+@property (readonly, getter=isVertical) BOOL vertical;
+
 @end
 
 
@@ -456,6 +555,8 @@ ORK_CLASS_AVAILABLE
 ORK_CLASS_AVAILABLE
 @interface ORKValuePickerAnswerFormat : ORKAnswerFormat
 
+- (instancetype)init NS_UNAVAILABLE;
+
 /**
  Returns a value picker answer format using the specified array of text choices.
  
@@ -465,14 +566,14 @@ ORK_CLASS_AVAILABLE
  
  @return An initialized value picker answer format.
  */
-- (instancetype)initWithTextChoices:(NSArray *)textChoices NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithTextChoices:(NSArray<ORKTextChoice *> *)textChoices NS_DESIGNATED_INITIALIZER;
 
 /**
  An array of text choices that represent the options to display in the picker. (read-only)
  
  Note that the `detailText` property of each choice is ignored. Be sure to create localized text for each choice that is short enough to fit in a `UIPickerView` object.
  */
-@property (copy, readonly) NSArray *textChoices;
+@property (copy, readonly) NSArray<ORKTextChoice *> *textChoices;
 
 @end
 
@@ -488,6 +589,8 @@ ORK_CLASS_AVAILABLE
 ORK_CLASS_AVAILABLE
 @interface ORKImageChoiceAnswerFormat : ORKAnswerFormat
 
+- (instancetype)init NS_UNAVAILABLE;
+
 /**
  Returns an initialized image choice answer format using the specified array of images.
  
@@ -495,7 +598,7 @@ ORK_CLASS_AVAILABLE
  
  @return An initialized image choice answer format.
  */
-- (instancetype)initWithImageChoices:(NSArray *)imageChoices NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithImageChoices:(NSArray<ORKImageChoice *> *)imageChoices NS_DESIGNATED_INITIALIZER;
 
 /**
  An array of `ORKImageChoice` objects that represent the available choices. (read-only)
@@ -503,7 +606,7 @@ ORK_CLASS_AVAILABLE
  The text of the currently selected choice is displayed on screen. The text for
  each choice is spoken by VoiceOver when an image is highlighted.
  */
-@property (copy, readonly) NSArray *imageChoices;
+@property (copy, readonly) NSArray<ORKImageChoice *> *imageChoices;
 
 @end
 
@@ -520,6 +623,8 @@ ORK_CLASS_AVAILABLE
 ORK_CLASS_AVAILABLE
 @interface ORKTextChoiceAnswerFormat : ORKAnswerFormat
 
+- (instancetype)init NS_UNAVAILABLE;
+
 /**
  Returns an initialized text choice answer format using the specified question style and array of text choices.
  
@@ -529,7 +634,7 @@ ORK_CLASS_AVAILABLE
  @return An initialized text choice answer format.
  */
 - (instancetype)initWithStyle:(ORKChoiceAnswerStyle)style
-                  textChoices:(NSArray *)textChoices NS_DESIGNATED_INITIALIZER;
+                  textChoices:(NSArray<ORKTextChoice *> *)textChoices NS_DESIGNATED_INITIALIZER;
 
 /**
  The style of the question (that is, single or multiple choice).
@@ -543,7 +648,7 @@ ORK_CLASS_AVAILABLE
  The text for each answer is given more prominence than the `detailText` in the row, but
  both are shown.
  */
-@property (copy, readonly) NSArray *textChoices;
+@property (copy, readonly) NSArray<ORKTextChoice *> *textChoices;
 
 @end
 
@@ -569,6 +674,8 @@ ORK_CLASS_AVAILABLE
  */
 ORK_CLASS_AVAILABLE
 @interface ORKTextChoice : NSObject <NSSecureCoding, NSCopying, NSObject>
+
+- (instancetype)init NS_UNAVAILABLE;
 
 /**
  Returns a text choice object that includes the specified primary text, detail text, and exclusivity.
@@ -655,6 +762,8 @@ ORK_CLASS_AVAILABLE
  */
 ORK_CLASS_AVAILABLE
 @interface ORKImageChoice : NSObject <NSSecureCoding, NSCopying>
+
+- (instancetype)init NS_UNAVAILABLE;
 
 /**
  Returns an image choice that includes the specified images and text.
@@ -748,6 +857,8 @@ typedef NS_ENUM(NSInteger, ORKNumericAnswerStyle) {
  */
 ORK_CLASS_AVAILABLE
 @interface ORKNumericAnswerFormat : ORKAnswerFormat
+
+- (instancetype)init NS_UNAVAILABLE;
 
 /**
  Returns an initialized numeric answer format using the specified style.
@@ -865,6 +976,8 @@ typedef NS_ENUM(NSInteger, ORKDateAnswerStyle) {
  */
 ORK_CLASS_AVAILABLE
 @interface ORKDateAnswerFormat : ORKAnswerFormat
+
+- (instancetype)init NS_UNAVAILABLE;
 
 /**
  Returns an initialized date answer format using the specified date style.
@@ -986,6 +1099,32 @@ ORK_CLASS_AVAILABLE
  By default, the value of this property is `UITextSpellCheckingTypeDefault`.
  */
 @property UITextSpellCheckingType spellCheckingType;
+
+/**
+ The keyboard type that applies to the user's input.
+ 
+ By default, the value of this property is `UIKeyboardTypeDefault`.
+ */
+@property UIKeyboardType keyboardType;
+
+/**
+ Identifies whether the text object should hide the text being entered.
+ 
+ By default, the value of this property is NO.
+ */
+@property(nonatomic,getter=isSecureTextEntry) BOOL secureTextEntry;
+
+@end
+
+
+/**
+ The `ORKEmailAnswerFormat` class represents the answer format for questions that collect an email response
+ from the user.
+ 
+ An `ORKEmailAnswerFormat` object produces an `ORKTextQuestionResult` object.
+ */
+ORK_CLASS_AVAILABLE
+@interface ORKEmailAnswerFormat : ORKAnswerFormat
 
 @end
 

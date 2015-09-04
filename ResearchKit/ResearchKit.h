@@ -61,4 +61,10 @@
 #import <ResearchKit/ORKActiveStep.h>
 #import <ResearchKit/ORKActiveStepViewController.h>
 
+
 #import <ResearchKit/ORKPreUploadDataStore.h>
+#import <ResearchKit/ORKRangedPoint.h>
+#import <ResearchKit/ORKLineGraphChartView.h>
+#import <ResearchKit/ORKDiscreteGraphChartView.h>
+#import <ResearchKit/ORKPieChartView.h>
+

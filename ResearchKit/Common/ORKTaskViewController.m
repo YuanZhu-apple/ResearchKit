@@ -167,8 +167,8 @@ static void *_ORKViewControllerToolbarObserverContext = &_ORKViewControllerToolb
     BOOL _hasBeenPresented;
     BOOL _hasRequestedHealthData;
     ORKPermissionMask _grantedPermissions;
-    NSSet *_requestedHealthTypesForRead;
-    NSSet *_requestedHealthTypesForWrite;
+    NSSet<HKObjectType *> *_requestedHealthTypesForRead;
+    NSSet<HKObjectType *> *_requestedHealthTypesForWrite;
     NSURL *_outputDirectory;
     
     NSDate *_presentedDate;
@@ -298,7 +298,7 @@ static NSString *const _ChildNavigationControllerRestorationKey = @"childNavigat
     return [self commonInitWithTask:task taskRunUUID:taskRunUUID];
 }
 
-- (instancetype)initWithTask:(id<ORKTask>)task restorationData:(NSData *)data delegate:(nonnull id<ORKTaskViewControllerDelegate>)delegate {
+- (instancetype)initWithTask:(id<ORKTask>)task restorationData:(NSData *)data delegate:(id<ORKTaskViewControllerDelegate>)delegate {
     
     self = [self initWithTask:task taskRunUUID:nil];
     
@@ -608,11 +608,11 @@ static NSString *const _ChildNavigationControllerRestorationKey = @"childNavigat
     }
 }
 
-- (NSSet *)requestedHealthTypesForRead {
+- (NSSet<HKObjectType *> *)requestedHealthTypesForRead {
     return _requestedHealthTypesForRead;
 }
 
-- (NSSet *)requestedHealthTypesForWrite {
+- (NSSet<HKObjectType *> *)requestedHealthTypesForWrite {
     return _requestedHealthTypesForWrite;
 }
 
@@ -902,12 +902,14 @@ static NSString *const _ChildNavigationControllerRestorationKey = @"childNavigat
     
     __weak typeof(self) weakSelf = self;
     
-    UIPageViewControllerNavigationDirection direction = goForward?UIPageViewControllerNavigationDirectionForward:UIPageViewControllerNavigationDirectionReverse;
+    UIPageViewControllerNavigationDirection direction = goForward ? UIPageViewControllerNavigationDirectionForward : UIPageViewControllerNavigationDirectionReverse;
     
+    ORKAdjustPageViewControllerNavigationDirectionForRTL(&direction);
+
     ORKStepViewControllerNavigationDirection stepDirection = goForward?ORKStepViewControllerNavigationDirectionForward : ORKStepViewControllerNavigationDirectionReverse;
     
     NSString *progressLabel = nil;
-    if (self.showsProgressInNavigationBar && [_task respondsToSelector:@selector(progressOfCurrentStep:withResult:)]) {
+    if ([self shouldDisplayProgressLabel]) {
         ORKTaskProgress progress = [_task progressOfCurrentStep:viewController.step withResult:[self result]];
 
         if (progress.total > 0) {
@@ -981,6 +983,10 @@ static NSString *const _ChildNavigationControllerRestorationKey = @"childNavigat
     _pageViewController.toolbarItems = viewController.toolbarItems;
     _pageViewController.navigationItem.leftBarButtonItem = viewController.navigationItem.leftBarButtonItem;
     _pageViewController.navigationItem.rightBarButtonItem = viewController.navigationItem.rightBarButtonItem;
+    if (![self shouldDisplayProgressLabel]) {
+        _pageViewController.navigationItem.title = viewController.navigationItem.title;
+        _pageViewController.navigationItem.titleView = viewController.navigationItem.titleView;
+    }
 }
 
 - (void)observedScrollViewDidScroll:(UIScrollView *)scrollView {
@@ -1040,6 +1046,10 @@ static NSString *const _ChildNavigationControllerRestorationKey = @"childNavigat
     
     _stepViewControllerObserver = [[ORKViewControllerToolbarObserver alloc] initWithTargetViewController:stepViewController delegate:self];
     return stepViewController;
+}
+
+- (BOOL)shouldDisplayProgressLabel {
+    return self.showsProgressInNavigationBar && [_task respondsToSelector:@selector(progressOfCurrentStep:withResult:)];
 }
 
 #pragma mark - internal action Handlers

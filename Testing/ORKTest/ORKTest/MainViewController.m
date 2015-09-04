@@ -1,7 +1,8 @@
 /*
  Copyright (c) 2015, Apple Inc. All rights reserved.
  Copyright (c) 2015, Bruce Duncan.
- 
+ Copyright (c) 2015, Ricardo Sánchez-Sáez.
+
  Redistribution and use in source and binary forms, with or without modification,
  are permitted provided that the following conditions are met:
  
@@ -34,37 +35,145 @@
 #import <ResearchKit/ResearchKit_Private.h>
 #import <AVFoundation/AVFoundation.h>
 #import "DynamicTask.h"
-#import "CustomRecorder.h"
 #import "AppDelegate.h"
+#import "ORKTest-Swift.h"
 
 
-static NSString * const DatePickingTaskIdentifier = @"dates_001";
-static NSString * const SelectionSurveyTaskIdentifier = @"tid_001";
-static NSString * const ActiveStepTaskIdentifier = @"tid_002";
-static NSString * const ConsentReviewTaskIdentifier = @"consent_review";
-static NSString * const ConsentTaskIdentifier = @"consent";
-static NSString * const MiniFormTaskIdentifier = @"miniform";
-static NSString * const ScreeningTaskIdentifier = @"screening";
-static NSString * const ScalesTaskIdentifier = @"scales";
-static NSString * const ImageChoicesTaskIdentifier = @"images";
-static NSString * const ImageCaptureTaskIdentifier = @"imageCapture";
-static NSString * const AudioTaskIdentifier = @"audio";
-static NSString * const ToneAudiometryTaskIdentifier = @"tone_audiometry";
-static NSString * const FitnessTaskIdentifier = @"fitness";
-static NSString * const GaitTaskIdentifier = @"gait";
-static NSString * const MemoryTaskIdentifier = @"memory";
-static NSString * const DynamicTaskIdentifier = @"dynamic_task";
-static NSString * const TwoFingerTapTaskIdentifier = @"tap";
-static NSString * const ReactionTimeTaskIdentifier = @"react";
-static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
+#define DefineStringKey(x) static NSString *const x = @#x
+
+DefineStringKey(DatePickingTaskIdentifier);
+DefineStringKey(SelectionSurveyTaskIdentifier);
+DefineStringKey(ActiveStepTaskIdentifier);
+DefineStringKey(ConsentReviewTaskIdentifier);
+DefineStringKey(ConsentTaskIdentifier);
+DefineStringKey(MiniFormTaskIdentifier);
+DefineStringKey(ScreeningTaskIdentifier);
+DefineStringKey(ScalesTaskIdentifier);
+DefineStringKey(ImageChoicesTaskIdentifier);
+DefineStringKey(ImageCaptureTaskIdentifier);
+DefineStringKey(AudioTaskIdentifier);
+DefineStringKey(ToneAudiometryTaskIdentifier);
+DefineStringKey(FitnessTaskIdentifier);
+DefineStringKey(GaitTaskIdentifier);
+DefineStringKey(MemoryTaskIdentifier);
+DefineStringKey(DynamicTaskIdentifier);
+DefineStringKey(TwoFingerTapTaskIdentifier);
+DefineStringKey(ReactionTimeTaskIdentifier);
+DefineStringKey(TowerOfHanoiTaskIdentifier);
+DefineStringKey(TimedWalkTaskIdentifier);
+DefineStringKey(PSATTaskIdentifier);
+DefineStringKey(StepNavigationTaskIdentifier);
+DefineStringKey(CustomNavigationItemTaskIdentifier);
+
+DefineStringKey(CollectionViewHeaderReuseIdentifier);
+DefineStringKey(CollectionViewCellReuseIdentifier);
 
 
-@interface MainViewController () <ORKTaskViewControllerDelegate> {
+@interface SectionHeader: UICollectionReusableView
+
+- (void)configureHeaderWithTitle:(NSString *)title;
+
+@end
+
+
+@implementation SectionHeader {
+    UILabel *_title;
+}
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder {
+    if (self = [super initWithCoder:aDecoder]) {
+        [self sharedInit];
+    }
+    return self;
+}
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    if (self = [super initWithFrame:frame]) {
+        [self sharedInit];
+    }
+    return self;
+}
+
+static UIColor *HeaderColor() {
+    return [UIColor colorWithWhite:0.97 alpha:1.0];
+}
+static const CGFloat HeaderSideLayoutMargin = 16.0;
+
+- (void)sharedInit {
+    self.layoutMargins = UIEdgeInsetsMake(0, HeaderSideLayoutMargin, 0, HeaderSideLayoutMargin);
+    self.backgroundColor = HeaderColor();
+    _title = [UILabel new];
+    _title.font = [UIFont systemFontOfSize:17.0 weight:UIFontWeightSemibold]; // Table view header font
+    [self addSubview:_title];
+    
+    _title.translatesAutoresizingMaskIntoConstraints = NO;
+    NSDictionary *views = @{@"title": _title};
+    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-[title]-|"
+                                                                 options:NSLayoutFormatDirectionLeadingToTrailing
+                                                                 metrics:nil
+                                                                   views:views]];
+    [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[title]|"
+                                                                 options:0
+                                                                 metrics:nil
+                                                                   views:views]];
+}
+
+- (void)configureHeaderWithTitle:(NSString *)title {
+    _title.text = title;
+}
+
+@end
+
+
+@interface ButtonCell: UICollectionViewCell
+
+- (void)configureButtonWithTitle:(NSString *)title target:(id)target selector:(SEL)selector;
+
+@end
+
+
+@implementation ButtonCell {
+    UIButton *_button;
+}
+
+- (void)setUpButton {
+    [_button removeFromSuperview];
+    _button = [UIButton buttonWithType:UIButtonTypeSystem];
+    _button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+    _button.contentEdgeInsets = UIEdgeInsetsMake(0.0, HeaderSideLayoutMargin, 0.0, 0.0);
+    [self.contentView addSubview:_button];
+    
+    _button.translatesAutoresizingMaskIntoConstraints = NO;
+    NSDictionary *views = @{@"button": _button};
+    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[button]|"
+                                                                             options:NSLayoutFormatDirectionLeadingToTrailing
+                                                                             metrics:nil
+                                                                               views:views]];
+    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[button]|"
+                                                                             options:0
+                                                                             metrics:nil
+                                                                               views:views]];
+}
+
+- (void)configureButtonWithTitle:(NSString *)title target:(id)target selector:(SEL)selector {
+    [self setUpButton];
+    [_button setTitle:title forState:UIControlStateNormal];
+    [_button addTarget:target action:selector forControlEvents:UIControlEventTouchUpInside];
+}
+
+@end
+
+
+@interface MainViewController () <ORKTaskViewControllerDelegate, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout> {
     id<ORKTaskResultSource> _lastRouteResult;
     ORKConsentDocument *_currentDocument;
     
-    NSMutableDictionary *_savedTasks;               // Maps task identifiers to archived task data
-    NSMutableDictionary *_savedViewControllers;     // Maps task identifiers to task view controller restoration data
+    NSMutableDictionary<NSString *, NSData *> *_savedTasks;               // Maps task identifiers to archived task data
+    NSMutableDictionary<NSString *, NSData *> *_savedViewControllers;     // Maps task identifiers to task view controller restoration data
+    
+    UICollectionView *_collectionView;
+    NSArray<NSString *> *_buttonSectionNames;
+    NSArray<NSArray<NSString *> *> *_buttonTitles;
 }
 
 @property (nonatomic, strong) ORKTaskViewController *taskViewController;
@@ -88,242 +197,139 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     _savedTasks = [NSMutableDictionary new];
     _savedViewControllers = [NSMutableDictionary new];
     
-    NSMutableDictionary *buttons = [NSMutableDictionary dictionary];
+    UICollectionViewFlowLayout *flowLayout = [UICollectionViewFlowLayout new];
+    _collectionView = [[UICollectionView alloc] initWithFrame:self.view.bounds collectionViewLayout:flowLayout];
+    _collectionView.backgroundColor = [UIColor whiteColor];
+    [self.view addSubview:_collectionView];
     
-    /*
-     One button per task, organized in two columns.
-     Yes, we could have used a table view, but this was more convenient.
-     */
+    _collectionView.dataSource = self;
+    _collectionView.delegate = self;
+    [_collectionView registerClass:[SectionHeader class]
+        forSupplementaryViewOfKind:UICollectionElementKindSectionHeader
+               withReuseIdentifier:CollectionViewHeaderReuseIdentifier];
+    [_collectionView registerClass:[ButtonCell class]
+        forCellWithReuseIdentifier:CollectionViewCellReuseIdentifier];
     
-    NSMutableArray *buttonKeys = [NSMutableArray array];
+    UIView *statusBarBackground = [UIView new];
+    statusBarBackground.backgroundColor = HeaderColor();
+    [self.view addSubview:statusBarBackground];
 
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showConsent:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Consent" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"consent"];
-        buttons[buttonKeys.lastObject] = button;
-    }
+    _collectionView.translatesAutoresizingMaskIntoConstraints = NO;
+    statusBarBackground.translatesAutoresizingMaskIntoConstraints = NO;
+    NSDictionary *views = @{@"collectionView": _collectionView,
+                            @"statusBarBackground": statusBarBackground,
+                            @"topLayoutGuide": self.topLayoutGuide};
+    [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[statusBarBackground]|"
+                                                                      options:NSLayoutFormatDirectionLeadingToTrailing
+                                                                      metrics:nil
+                                                                        views:views]];
+    [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[statusBarBackground]"
+                                                                      options:0
+                                                                      metrics:nil
+                                                                        views:views]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:statusBarBackground
+                                                          attribute:NSLayoutAttributeBottom
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.topLayoutGuide
+                                                          attribute:NSLayoutAttributeBottom
+                                                         multiplier:1.0
+                                                           constant:0.0]];
+    [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[collectionView]|"
+                                                                      options:NSLayoutFormatDirectionLeadingToTrailing
+                                                                      metrics:nil
+                                                                        views:views]];
+    [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[topLayoutGuide][collectionView]|"
+                                                                      options:0
+                                                                      metrics:nil
+                                                                        views:views]];
+    
+    _buttonSectionNames = @[
+                            @"Consent",
+                            @"Question Steps",
+                            @"Active Tasks",
+                            @"Miscellaneous",
+                            ];
+    _buttonTitles = @[ @[ // Consent
+                           @"Consent",
+                           @"Consent Review",
+                           ],
+                       @[ // Question Steps
+                           @"Date Pickers",
+                           @"Image Capture",
+                           @"Image Choices",
+                           @"Scale",
+                           @"Mini Form",
+                           @"Selection Survey",
+                           ],
+                       @[ // Active Tasks
+                           @"Active Step Task",
+                           @"Audio Task",
+                           @"Fitness Task",
+                           @"GAIT Task",
+                           @"Memory Game Task",
+                           @"PSAT Task",
+                           @"Reaction Time Task",
+                           @"Timed Walk Task",
+                           @"Tone Audiometry Task",
+                           @"Tower Of Hanoi Task",
+                           @"Two Finger Tapping Task",
+                           ],
+                       @[ // Miscellaneous
+                           @"Custom Navigation Item",
+                           @"Dynamic Task",
+                           @"Interruptible Task",
+                           @"Navigable Ordered Task",
+                           @"Test Charts",
+                           @"Toggle Tint Color",
+                           ],
+                       ];
+}
 
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showConsentReview:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Consent Review" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"consent_review"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(pickDates:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Date Survey" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"dates"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showAudioTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Audio Task" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"audio"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showToneAudiometryTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Tone Audiometry Task" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"tone_audiometry"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showReactionTimeTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Reaction Time Task" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"react"];
-        buttons[buttonKeys.lastObject] = button;
-    }
+- (CGSize)collectionView:(UICollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout referenceSizeForHeaderInSection:(NSInteger)section {
+    return CGSizeMake(self.view.bounds.size.width, 22.0);  // Table view header height
+}
 
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showMiniForm:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Mini Form" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"form"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showSelectionSurvey:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Selection Survey" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"selection_survey"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showGaitTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"GAIT" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"gait"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showFitnessTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Fitness" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"fitness"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showTwoFingerTappingTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Two Finger Tapping" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"tapping"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showActiveStepTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"ActiveStep Task" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"task"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showMemoryTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Memory Game" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"memory"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showDynamicTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Dynamic Task" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"dyntask"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showScreeningTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Interruptible Task" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"interruptible"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showScales:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Scale" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"scale"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showImageChoices:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Image Choices" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"imageChoices"];
-        buttons[buttonKeys.lastObject] = button;
-    }
-    
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showStepNavigationTask:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Step Navigation Task" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"step"];
-        buttons[buttonKeys.lastObject] = button;
-    }
+- (CGSize)collectionView:(UICollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout sizeForItemAtIndexPath:(NSIndexPath *)indexPath {
+    return CGSizeMake(self.view.bounds.size.width / 2, 44.0);
+}
 
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(showImageCapture:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Image Capture" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"imageCapture"];
-        buttons[buttonKeys.lastObject] = button;
-    }
+- (CGFloat)collectionView:(UICollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout minimumInteritemSpacingForSectionAtIndex:(NSInteger)section {
+    return 0.0;
+}
 
-    {
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-        [button addTarget:self action:@selector(toggleTintColor:) forControlEvents:UIControlEventTouchUpInside];
-        [button setTitle:@"Toggle Tint Color" forState:UIControlStateNormal];
-        [buttonKeys addObject:@"toggleTintColor"];
-        buttons[buttonKeys.lastObject] = button;
-    }
+- (CGFloat)collectionView:(UICollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout minimumLineSpacingForSectionAtIndex:(NSInteger)section {
+    return 0.0;
+}
 
-    [buttons enumerateKeysAndObjectsUsingBlock:^(id key, UIView *obj, BOOL *stop) {
-        [obj setTranslatesAutoresizingMaskIntoConstraints:NO];
-        [self.view addSubview:obj];
-    }];
-   
-    if (buttons.count > 0) {
-         NSString *horizVisualFormatString  = @"";
-        if (buttons.count == 1) {
-            horizVisualFormatString = [NSString stringWithFormat:@"H:|[%@]|", buttonKeys.firstObject];
-        } else {
-            horizVisualFormatString = [NSString stringWithFormat:@"H:|[%@][%@(==%@)]|", buttonKeys.firstObject, buttonKeys[1], buttonKeys.firstObject];
-        }
-        [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:horizVisualFormatString 
-                                                                          options:(NSLayoutFormatOptions)0
-                                                                          metrics:nil
-                                                                            views:buttons]];
-        
-        NSArray *allKeys = buttonKeys;
-        BOOL left = YES;
-        NSMutableString *leftVisualFormatString = [NSMutableString stringWithString:@"V:|-20-"];
-        NSMutableString *rightVisualFormatString = [NSMutableString stringWithString:@"V:|-20-"];
-        
-        NSString *leftFirstKey = nil;
-        NSString *rightFirstKey = nil;
-        
-        for (NSString *key in allKeys) {
-        
-            if (left == YES) {
-            
-                if (leftFirstKey) {
-                    [leftVisualFormatString appendFormat:@"[%@(==%@)]", key, leftFirstKey];
-                } else {
-                    [leftVisualFormatString appendFormat:@"[%@]", key];
-                }
-                
-                if (leftFirstKey == nil) {
-                    leftFirstKey = key;
-                }
-            } else {
-                
-                if (rightFirstKey) {
-                    [rightVisualFormatString appendFormat:@"[%@(==%@)]", key, rightFirstKey];
-                } else {
-                    [rightVisualFormatString appendFormat:@"[%@]", key];
-                }
-                
-                if (rightFirstKey == nil) {
-                    rightFirstKey = key;
-                }
-            }
-            
-            left = !left;
-        }
-        
-        [leftVisualFormatString appendString:@"-20-|"];
-        [rightVisualFormatString appendString:@"-20-|"];
-        
-        [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:leftVisualFormatString
-                                                                          options:NSLayoutFormatAlignAllCenterX
-                                                                          metrics:nil
-                                                                            views:buttons]];
-        [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:rightVisualFormatString
-                                                                          options:NSLayoutFormatAlignAllCenterX
-                                                                          metrics:nil
-                                                                            views:buttons]];
-        
-    }
+- (NSInteger)numberOfSectionsInCollectionView:(UICollectionView *)collectionView {
+    return _buttonSectionNames.count;
+}
+
+- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
+    return ((NSArray *)_buttonTitles[section]).count;
+}
+
+- (UICollectionReusableView *)collectionView:(UICollectionView *)collectionView viewForSupplementaryElementOfKind:(NSString *)kind atIndexPath:(NSIndexPath *)indexPath {
+    SectionHeader *sectionHeader = [collectionView dequeueReusableSupplementaryViewOfKind:kind withReuseIdentifier:CollectionViewHeaderReuseIdentifier forIndexPath:indexPath];
+    [sectionHeader configureHeaderWithTitle:_buttonSectionNames[indexPath.section]];
+    return sectionHeader;
+}
+
+- (SEL)selectorFromButtonTitle:(NSString *)buttonTitle {
+    // "THIS FOO baR title" is converted to the "thisFooBarTitleButtonTapped:" selector
+    buttonTitle = buttonTitle.capitalizedString;
+    NSMutableArray *titleTokens = [[buttonTitle componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] mutableCopy];
+    titleTokens[0] = ((NSString *)titleTokens[0]).lowercaseString;
+    NSString *selectorString = [NSString stringWithFormat:@"%@ButtonTapped:", [titleTokens componentsJoinedByString:@""]];
+    return NSSelectorFromString(selectorString);
+}
+
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
+    ButtonCell *buttonCell = [collectionView dequeueReusableCellWithReuseIdentifier:CollectionViewCellReuseIdentifier forIndexPath:indexPath];
+    NSString *buttonTitle = _buttonTitles[indexPath.section][indexPath.row];
+    SEL buttonSelector = [self selectorFromButtonTitle:buttonTitle];
+    [buttonCell configureButtonWithTitle:buttonTitle target:self selector:buttonSelector];
+    return buttonCell;
 }
 
 #pragma mark - Mapping identifiers to tasks
@@ -398,8 +404,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
                                                    intendedUseDescription:nil
                                                                  duration:20.0
                                                                   options:(ORKPredefinedTaskOption)0];
-    }
-    else if ([identifier isEqualToString:ReactionTimeTaskIdentifier]) {
+    } else if ([identifier isEqualToString:ReactionTimeTaskIdentifier]) {
         return [ORKOrderedTask reactionTimeTaskWithIdentifier:ReactionTimeTaskIdentifier
                                                    intendedUseDescription:nil
                                                   maximumStimulusInterval:8
@@ -411,8 +416,29 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
                                                              timeoutSound:0
                                                              failureSound:0
                                                                   options:0];
+    } else if ([identifier isEqualToString:TowerOfHanoiTaskIdentifier]) {
+        return [ORKOrderedTask towerOfHanoiTaskWithIdentifier:TowerOfHanoiTaskIdentifier
+                                       intendedUseDescription:nil
+                                                numberOfDisks:5
+                                                      options:0];
+    } else if ([identifier isEqualToString:TimedWalkTaskIdentifier]) {
+        return [ORKOrderedTask timedWalkTaskWithIdentifier:TimedWalkTaskIdentifier
+                                    intendedUseDescription:nil
+                                          distanceInMeters:100
+                                                 timeLimit:180
+                                                   options:ORKPredefinedTaskOptionNone];
+    } else if ([identifier isEqualToString:PSATTaskIdentifier]) {
+        return [ORKOrderedTask PSATTaskWithIdentifier:PSATTaskIdentifier
+                               intendedUseDescription:nil
+                                     presentationMode:(ORKPSATPresentationModeAuditory | ORKPSATPresentationModeVisual)
+                                interStimulusInterval:3.0
+                                     stimulusDuration:1.0
+                                         seriesLength:60
+                                              options:ORKPredefinedTaskOptionNone];
     } else if ([identifier isEqualToString:StepNavigationTaskIdentifier]) {
-        return [self makeStepNavigationTask];
+        return [self makeNavigableOrderedTask];
+    } else if ([identifier isEqualToString:CustomNavigationItemTaskIdentifier]) {
+        return [self makeCustomNavigationItemTask];
     }
     return nil;
 }
@@ -475,7 +501,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     if (_taskViewController.outputDirectory == nil) {
         // Sets an output directory in Documents, using the `taskRunUUID` in the path.
         NSURL *documents =  [[NSFileManager defaultManager] URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:NO error:nil];
-        NSURL *outputDir = [documents URLByAppendingPathComponent:[self.taskViewController.taskRunUUID UUIDString]];
+        NSURL *outputDir = [documents URLByAppendingPathComponent:self.taskViewController.taskRunUUID.UUIDString];
         [[NSFileManager defaultManager] createDirectoryAtURL:outputDir withIntermediateDirectories:YES attributes:nil error:nil];
         self.taskViewController.outputDirectory = outputDir;
     }
@@ -495,6 +521,10 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
      for state restoration of a ResearchKit framework task VC.
      */
     _taskViewController.restorationIdentifier = [task identifier];
+    
+    if ([[task identifier] isEqualToString:CustomNavigationItemTaskIdentifier]) {
+        _taskViewController.showsProgressInNavigationBar = NO;
+    }
     
     [self presentViewController:_taskViewController animated:YES completion:nil];
 }
@@ -616,7 +646,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     return task;
 }
 
-- (IBAction)pickDates:(id)sender {
+- (IBAction)datePickersButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:DatePickingTaskIdentifier];
 }
 
@@ -674,6 +704,8 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
         ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"qid_003"
                                                                       title:@"How many hours did you sleep last night?"
                                                                      answer:answerFormat];
+        
+        step.optional = NO;
         [steps addObject:step];
     }
     
@@ -760,6 +792,57 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
         ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"qid_005b"
                                                                       title:@"How did you feel last night?"
                                                                      answer:[ORKTextAnswerFormat textAnswerFormatWithMaximumLength:20]];
+        [steps addObject:step];
+    }
+    
+    
+    {
+        /*
+         A text question with single-line text entry and a URL keyboard.
+         */
+        ORKTextAnswerFormat *format = [ORKAnswerFormat textAnswerFormat];
+        format.multipleLines = NO;
+        format.keyboardType = UIKeyboardTypeURL;
+        ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"qid_005c"
+                                                                      title:@"What is your website?"
+                                                                     answer:format];
+        [steps addObject:step];
+    }
+    
+    {
+        /*
+         An email question with single-line text entry.
+         */
+        ORKEmailAnswerFormat *format = [ORKAnswerFormat emailAnswerFormat];
+        ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"qid_005d"
+                                                                      title:@"What is your email?"
+                                                                     answer:format];
+        [steps addObject:step];
+    }
+    
+    {
+        /*
+         A text question demos secureTextEntry feature
+         */
+        ORKTextAnswerFormat *format = [ORKAnswerFormat textAnswerFormatWithMaximumLength:10];
+        format.secureTextEntry = YES;
+        format.multipleLines = NO;
+        ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"qid_005sec"
+                                                                      title:@"What is your passcode?"
+                                                                     answer:format];
+        step.placeholder = @"Tap your passcode here";
+        [steps addObject:step];
+    }
+    
+    {
+        /*
+         A text question with single-line text entry and a length limit.
+         */
+        ORKTextAnswerFormat *format = [ORKAnswerFormat textAnswerFormatWithMaximumLength:20];
+        format.multipleLines = NO;
+        ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"qid_005e"
+                                                                      title:@"What is your name?"
+                                                                     answer:format];
         [steps addObject:step];
     }
     
@@ -892,7 +975,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     return task;
 }
 
-- (IBAction)showSelectionSurvey:(id)sender {
+- (IBAction)selectionSurveyButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:SelectionSurveyTaskIdentifier];
 }
 
@@ -974,22 +1057,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
         step.recorderConfigurations = @[[[ORKTouchRecorderConfiguration alloc] initWithIdentifier:@"aid_001a.touch"]];
         [steps addObject:step];
     }
-    
-    {
-        /*
-         Demo of how to use a custom recorder to customize an active step.
-         
-         Not a recommended way of customizing active steps with the ResearchKit framework.
-         */
-        ORKActiveStep *step = [[ORKActiveStep alloc] initWithIdentifier:@"aid_001b"];
-        step.title = @"Button Tap";
-        step.text = @"Please tap the orange button when it appears in the green area below.";
-        step.stepDuration = 10.0;
-        step.shouldUseNextAsSkipButton = YES;
-        step.recorderConfigurations = @[[[CustomRecorderConfiguration alloc] initWithIdentifier:@"aid_001b.audio"]];
-        [steps addObject:step];
-    }
-    
+        
     {
         /*
          Test for device motion recorder directly on an active step.
@@ -1008,7 +1076,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     return task;
 }
 
-- (IBAction)showActiveStepTask:(id)sender {
+- (IBAction)activeStepTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:ActiveStepTaskIdentifier];
 }
 
@@ -1051,7 +1119,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     return task;
 }
 
-- (IBAction)showConsentReview:(id)sender {
+- (IBAction)consentReviewButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:ConsentReviewTaskIdentifier];
 }
 
@@ -1080,7 +1148,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     return task;
 }
 
-- (IBAction)showConsent:(id)sender {
+- (IBAction)consentButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:ConsentTaskIdentifier];
 }
 
@@ -1234,6 +1302,31 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
         }
         
         {
+            ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"fqid_005" text:@"Email"
+                                                           answerFormat:[ORKAnswerFormat emailAnswerFormat]];
+            item.placeholder = @"Enter Email";
+            [items addObject:item];
+        }
+        
+        {
+            ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"fqid_006" text:@"Message"
+                                                           answerFormat:[ORKAnswerFormat textAnswerFormatWithMaximumLength:20]];
+            item.placeholder = @"Your message (limit 20 characters).";
+            [items addObject:item];
+        }
+        
+        {
+            ORKTextAnswerFormat *format = [ORKAnswerFormat textAnswerFormatWithMaximumLength:12];
+            format.secureTextEntry = YES;
+            format.multipleLines = NO;
+            
+            ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"fqid_007" text:@"Passcode"
+                                                           answerFormat:format];
+            item.placeholder = @"Enter Passcode";
+            [items addObject:item];
+        }
+        
+        {
             ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"fqid_date_001" text:@"Birthdate"
                                                          answerFormat:[ORKAnswerFormat dateAnswerFormat]];
             item.placeholder = @"Pick a date";
@@ -1367,6 +1460,44 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
             [items addObject:item];
         }
         
+        {
+            ORKTextChoice *textChoice1 = [ORKTextChoice choiceWithText:@"Poor" value:@(1)];
+            ORKTextChoice *textChoice2 = [ORKTextChoice choiceWithText:@"Fair" value:@(2)];
+            ORKTextChoice *textChoice3 = [ORKTextChoice choiceWithText:@"Good" value:@(3)];
+            ORKTextChoice *textChoice4 = [ORKTextChoice choiceWithText:@"Above Average" value:@(4)];
+            ORKTextChoice *textChoice5 = [ORKTextChoice choiceWithText:@"Excellent" value:@(5)];
+            
+            NSArray *textChoices = @[textChoice1, textChoice2, textChoice3, textChoice4, textChoice5];
+            
+            ORKTextScaleAnswerFormat *scaleAnswerFormat = [ORKAnswerFormat textScaleAnswerFormatWithTextChoices:textChoices
+                                                                                                   defaultIndex:NSIntegerMax
+                                                                                                       vertical:NO];
+            
+            ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"fqid_scale_007"
+                                                                   text:@"How are you feeling today?"
+                                                           answerFormat:scaleAnswerFormat];
+            [items addObject:item];
+        }
+        
+        {
+            ORKTextChoice *textChoice1 = [ORKTextChoice choiceWithText:@"Poor" value:@(1)];
+            ORKTextChoice *textChoice2 = [ORKTextChoice choiceWithText:@"Fair" value:@(2)];
+            ORKTextChoice *textChoice3 = [ORKTextChoice choiceWithText:@"Good" value:@(3)];
+            ORKTextChoice *textChoice4 = [ORKTextChoice choiceWithText:@"Above Average" value:@(4)];
+            ORKTextChoice *textChoice5 = [ORKTextChoice choiceWithText:@"Excellent" value:@(5)];
+            
+            NSArray *textChoices = @[textChoice1, textChoice2, textChoice3, textChoice4, textChoice5];
+            
+            ORKTextScaleAnswerFormat *scaleAnswerFormat = [ORKAnswerFormat textScaleAnswerFormatWithTextChoices:textChoices
+                                                                                                   defaultIndex:NSIntegerMax
+                                                                                                       vertical:YES];
+            
+            ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"fqid_scale_008"
+                                                                   text:@"How are you feeling today?"
+                                                           answerFormat:scaleAnswerFormat];
+            [items addObject:item];
+        }
+        
         [step setFormItems:items];
         [steps addObject:step];
     }
@@ -1394,50 +1525,62 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     return task;
 }
 
-- (IBAction)showMiniForm:(id)sender {
+- (IBAction)miniFormButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:MiniFormTaskIdentifier];
 }
 
-#pragma mark Active tasks
+#pragma mark - Active tasks
 
-- (IBAction)showFitnessTask:(id)sender {
+- (IBAction)fitnessTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:FitnessTaskIdentifier];
 }
 
-- (IBAction)showGaitTask:(id)sender {
+- (IBAction)gaitTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:GaitTaskIdentifier];
 }
 
-- (IBAction)showMemoryTask:(id)sender {
+- (IBAction)memoryGameTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:MemoryTaskIdentifier];
 }
 
-- (IBAction)showAudioTask:(id)sender {
+- (IBAction)audioTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:AudioTaskIdentifier];
 }
 
-- (IBAction)showToneAudiometryTask:(id)sender {
+- (IBAction)toneAudiometryTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:ToneAudiometryTaskIdentifier];
 }
 
-- (IBAction)showTwoFingerTappingTask:(id)sender {
+- (IBAction)twoFingerTappingTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:TwoFingerTapTaskIdentifier];
 }
 
-- (IBAction)showReactionTimeTask:(id)sender {
+- (IBAction)reactionTimeTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:ReactionTimeTaskIdentifier];
 }
 
-#pragma mark Dynamic task
+- (IBAction)towerOfHanoiTaskButtonTapped:(id)sender {
+    [self beginTaskWithIdentifier:TowerOfHanoiTaskIdentifier];
+}
+
+- (IBAction)timedWalkTaskButtonTapped:(id)sender {
+    [self beginTaskWithIdentifier:TimedWalkTaskIdentifier];
+}
+
+- (IBAction)psatTaskButtonTapped:(id)sender {
+    [self beginTaskWithIdentifier:PSATTaskIdentifier];
+}
+
+#pragma mark - Dynamic task
 
 /*
  See the `DynamicTask` class for a definition of this task.
  */
-- (IBAction)showDynamicTask:(id)sender {
+- (IBAction)dynamicTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:DynamicTaskIdentifier];
 }
 
-#pragma mark Screening task
+#pragma mark - Screening task
 
 /*
  This demonstrates a task where if the user enters a value that is too low for
@@ -1477,11 +1620,11 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     return task;
 }
 
-- (IBAction)showScreeningTask:(id)sender {
+- (IBAction)interruptibleTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:ScreeningTaskIdentifier];
 }
 
-#pragma mark Scales task
+#pragma mark - Scales task
 
 /*
  This task is used to test various uses of discrete and continuous, horizontal and vertical valued sliders.
@@ -1690,12 +1833,97 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
         [steps addObject:step];
     }
     
+    {
+        /*
+         Continuous scale with images.
+         */
+        ORKContinuousScaleAnswerFormat *scaleAnswerFormat =  [ORKAnswerFormat continuousScaleAnswerFormatWithMaximumValue:10
+                                                                                                             minimumValue:1
+                                                                                                             defaultValue:NSIntegerMax
+                                                                                                    maximumFractionDigits:2
+                                                                                                                 vertical:YES
+                                                                                                  maximumValueDescription:@"Hot"
+                                                                                                  minimumValueDescription:@"Warm"];
+        
+        scaleAnswerFormat.minimumImage = [self imageWithColor:[UIColor yellowColor] size:CGSizeMake(30, 30) border:NO];
+        scaleAnswerFormat.maximumImage = [self imageWithColor:[UIColor redColor] size:CGSizeMake(30, 30) border:NO];
+        scaleAnswerFormat.minimumImage.accessibilityHint = @"A yellow colored square to represent warmness.";
+        scaleAnswerFormat.maximumImage.accessibilityHint = @"A red colored square to represent hot.";
+        
+        ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"scale_12"
+                                                                      title:@"On a scale of 1 to 10, how warm do you feel?"
+                                                                     answer:scaleAnswerFormat];
+        [steps addObject:step];
+    }
+    
+    {
+        /*
+         Discrete scale with images.
+         */
+        ORKScaleAnswerFormat *scaleAnswerFormat =  [ORKAnswerFormat scaleAnswerFormatWithMaximumValue:10
+                                                                                         minimumValue:1
+                                                                                         defaultValue:NSIntegerMax
+                                                                                                 step:1
+                                                                                             vertical:NO
+                                                                              maximumValueDescription:nil
+                                                                              minimumValueDescription:nil];
+        
+        scaleAnswerFormat.minimumImage = [self imageWithColor:[UIColor yellowColor] size:CGSizeMake(30, 30) border:NO];
+        scaleAnswerFormat.maximumImage = [self imageWithColor:[UIColor redColor] size:CGSizeMake(30, 30) border:NO];
+        
+        ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"scale_13"
+                                                                      title:@"On a scale of 1 to 10, how warm do you feel?"
+                                                                     answer:scaleAnswerFormat];
+        [steps addObject:step];
+    }
+    
+    {
+        ORKTextChoice *textChoice1 = [ORKTextChoice choiceWithText:@"Poor" value:@(1)];
+        ORKTextChoice *textChoice2 = [ORKTextChoice choiceWithText:@"Fair" value:@(2)];
+        ORKTextChoice *textChoice3 = [ORKTextChoice choiceWithText:@"Good" value:@(3)];
+        ORKTextChoice *textChoice4 = [ORKTextChoice choiceWithText:@"Above Average" value:@(4)];
+        ORKTextChoice *textChoice5 = [ORKTextChoice choiceWithText:@"Excellent" value:@(5)];
+        
+        NSArray *textChoices = @[textChoice1, textChoice2, textChoice3, textChoice4, textChoice5];
+        
+        ORKTextScaleAnswerFormat *scaleAnswerFormat = [ORKAnswerFormat textScaleAnswerFormatWithTextChoices:textChoices
+                                                                                               defaultIndex:NSIntegerMax
+                                                                                                   vertical:NO];
+        
+        ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"scale_14"
+                                                                      title:@"How are you feeling today?"
+                                                                     answer:scaleAnswerFormat];
+        
+        [steps addObject:step];
+    }
+    
+    {
+        ORKTextChoice *textChoice1 = [ORKTextChoice choiceWithText:@"Poor" value:@(1)];
+        ORKTextChoice *textChoice2 = [ORKTextChoice choiceWithText:@"Fair" value:@(2)];
+        ORKTextChoice *textChoice3 = [ORKTextChoice choiceWithText:@"Good" value:@(3)];
+        ORKTextChoice *textChoice4 = [ORKTextChoice choiceWithText:@"Above Average" value:@(4)];
+        ORKTextChoice *textChoice5 = [ORKTextChoice choiceWithText:@"Excellent" value:@(5)];
+        
+        NSArray *textChoices = @[textChoice1, textChoice2, textChoice3, textChoice4, textChoice5];
+        
+        ORKTextScaleAnswerFormat *scaleAnswerFormat = [ORKAnswerFormat textScaleAnswerFormatWithTextChoices:textChoices
+                                                                                               defaultIndex:NSIntegerMax
+                                                                                                   vertical:YES];
+        
+        ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"scale_15"
+                                                                      title:@"How are you feeling today?"
+                                                                     answer:scaleAnswerFormat];
+        
+        [steps addObject:step];
+    }
+
+    
     ORKOrderedTask *task = [[ORKOrderedTask alloc] initWithIdentifier:ScalesTaskIdentifier steps:steps];
     return task;
     
 }
 
-- (IBAction)showScales:(id)sender {
+- (IBAction)scaleButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:ScalesTaskIdentifier];
 }
 
@@ -1819,7 +2047,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     
 }
 
-- (IBAction)showImageChoices:(id)sender {
+- (IBAction)imageChoicesButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:ImageChoicesTaskIdentifier];
 }
 
@@ -1859,6 +2087,8 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
         ORKImageCaptureStep *step = [[ORKImageCaptureStep alloc] initWithIdentifier:@"right3"];
         step.templateImage = [UIImage imageNamed:@"right_hand_outline_big"];
         step.templateImageInsets = UIEdgeInsetsMake(0.05, 0.05, 0.05, 0.05);
+        step.accessibilityInstructions = @"Extend your right hand, palm side down, one foot in front of your device. Tap the Capture Image button, or two-finger double tap the preview to capture the image";
+        step.accessibilityHint = @"Captures the image visible in the preview";
         [steps addObject:step];
     }
     {
@@ -1879,6 +2109,8 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
         ORKImageCaptureStep *step = [[ORKImageCaptureStep alloc] initWithIdentifier:@"left3"];
         step.templateImage = [UIImage imageNamed:@"left_hand_outline_big"];
         step.templateImageInsets = UIEdgeInsetsMake(0.05, 0.05, 0.05, 0.05);
+        step.accessibilityInstructions = @"Extend your left hand, palm side down, one foot in front of your device. Tap the Capture Image button, or two-finger double tap the preview to capture the image";
+        step.accessibilityHint = @"Captures the image visible in the preview";
         [steps addObject:step];
     }
     {
@@ -1891,14 +2123,14 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     return task;
     
 }
-- (IBAction)showImageCapture:(id)sender {
+- (IBAction)imageCaptureButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:ImageCaptureTaskIdentifier];
 }
-- (IBAction)showStepNavigationTask:(id)sender {
+- (IBAction)navigableOrderedTaskButtonTapped:(id)sender {
     [self beginTaskWithIdentifier:StepNavigationTaskIdentifier];
 }
 
-- (IBAction)toggleTintColor:(id)sender {
+- (IBAction)toggleTintColorButtonTapped:(id)sender {
     static UIColor *defaultTintColor = nil;
     if (!defaultTintColor) {
         defaultTintColor = self.view.tintColor;
@@ -1914,15 +2146,35 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     [superview addSubview:self.view];
 }
 
-#pragma mark - Step navigation task
+#pragma mark - Navigable Ordered Task
 
-- (id<ORKTask>)makeStepNavigationTask {
+- (id<ORKTask>)makeNavigableOrderedTask {
     NSMutableArray *steps = [NSMutableArray new];
     
     ORKAnswerFormat *answerFormat = nil;
     ORKStep *step = nil;
+    NSArray *textChoices = nil;
     
-    NSArray *textChoices =
+    // Form step
+    textChoices =
+    @[
+      [ORKTextChoice choiceWithText:@"Good" value:@"good"],
+      [ORKTextChoice choiceWithText:@"Bad" value:@"bad"]
+      ];
+
+    answerFormat = [ORKAnswerFormat choiceAnswerFormatWithStyle:ORKChoiceAnswerStyleSingleChoice
+                                                    textChoices:textChoices];
+    
+    ORKFormItem *formItemFeeling = [[ORKFormItem alloc] initWithIdentifier:@"formFeeling" text:@"How do you feel" answerFormat:answerFormat];
+    ORKFormItem *formItemMood = [[ORKFormItem alloc] initWithIdentifier:@"formMood" text:@"How is your mood" answerFormat:answerFormat];
+    
+    ORKFormStep *formStep = [[ORKFormStep alloc] initWithIdentifier:@"introForm"];
+    formStep.optional = NO;
+    formStep.formItems = @[ formItemFeeling, formItemMood ];
+    [steps addObject:formStep];
+
+    // Question steps
+    textChoices =
     @[
       [ORKTextChoice choiceWithText:@"Headache" value:@"headache"],
       [ORKTextChoice choiceWithText:@"Dizziness" value:@"dizziness"],
@@ -1940,6 +2192,7 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     step.optional = NO;
     [steps addObject:step];
 
+    // Instruction steps
     step = [[ORKInstructionStep alloc] initWithIdentifier:@"blank"];
     step.title = @"This step is intentionally left blank (you should not see it)";
     [steps addObject:step];
@@ -1956,6 +2209,10 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     step.title = @"Your symptom is not a headache";
     [steps addObject:step];
 
+    step = [[ORKInstructionStep alloc] initWithIdentifier:@"survey_skipped"];
+    step.title = @"Please come back to this survey when you don't feel good or your mood is low.";
+    [steps addObject:step];
+
     step = [[ORKInstructionStep alloc] initWithIdentifier:@"end"];
     step.title = @"You have finished the task";
     [steps addObject:step];
@@ -1968,63 +2225,72 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
                                                                                   steps:steps];
     
     // Build navigation rules
+    ORKPredicateStepNavigationRule *predicateRule = nil;
+    ORKResultSelector *resultSelector = nil;
     
-    // Individual predicates
+    // From the feel/mood form step, skip the survey if the user is feeling okay and has a good mood
+    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"introForm"
+                                                                        resultIdentifier:@"formFeeling"];
+    NSPredicate *predicateGoodFeeling = [ORKResultPredicate predicateForChoiceQuestionResultWithResultSelector:resultSelector
+                                                                                           expectedAnswerValue:@"good"];
+    
+    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"introForm"
+                                                                        resultIdentifier:@"formMood"];
+    NSPredicate *predicateGoodMood = [ORKResultPredicate predicateForChoiceQuestionResultWithResultSelector:resultSelector
+                                                                                        expectedAnswerValue:@"good"];
+    NSPredicate *predicateGoodMoodAndFeeling = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateGoodFeeling, predicateGoodMood]];
+    
+    predicateRule = [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:@[ predicateGoodMoodAndFeeling ]
+                                                          destinationStepIdentifiers:@[ @"survey_skipped" ] ];
+    
+    [task setNavigationRule:predicateRule forTriggerStepIdentifier:@"introForm"];
+
+    
+    // From the "symptom" step, go to "other_symptom" is user didn't chose headache.
+    // Otherwise, default to going to next step (the regular ORKOrderedTask order applies
+    //  when the defaultStepIdentifier argument is omitted).
     
     // User chose headache at the symptom step
-    NSPredicate *predicateHeadache = [ORKResultPredicate predicateForChoiceQuestionResultWithResultIdentifier:@"symptom"
-                                                                                               expectedString:@"headache"];
     // Equivalent to:
     //      [NSPredicate predicateWithFormat:
     //          @"SUBQUERY(SELF, $x, $x.identifier like 'symptom' \
     //                     AND SUBQUERY($x.answer, $y, $y like 'headache').@count > 0).@count > 0"];
-
+    resultSelector = [ORKResultSelector selectorWithResultIdentifier:@"symptom"];
+    NSPredicate *predicateHeadache = [ORKResultPredicate predicateForChoiceQuestionResultWithResultSelector:resultSelector
+                                                                                        expectedAnswerValue:@"headache"];
+    
     // User didn't chose headache at the symptom step
     NSPredicate *predicateNotHeadache = [NSCompoundPredicate notPredicateWithSubpredicate:predicateHeadache];
 
-    // User chose YES at the severity step
-    NSPredicate *predicateSevereYes = [ORKResultPredicate predicateForBooleanQuestionResultWithResultIdentifier:@"severity"
-                                                                                                 expectedAnswer:YES];
-    // Equivalent to:
-    //      [NSPredicate predicateWithFormat:
-    //          @"SUBQUERY(SELF, $x, $x.identifier like 'severity' AND $x.answer == YES).@count > 0"];
-
-    // User chose NO at the severity step
-    NSPredicate *predicateSevereNo = [ORKResultPredicate predicateForBooleanQuestionResultWithResultIdentifier:@"severity"
-                                                                                                expectedAnswer:NO];
-
-    
-    // From the "symptom" step, go to "other_symptom" is user didn't chose headache.
-    // Otherwise, default to going to next step (when the defaultStepIdentifier argument is omitted,
-    // the regular ORKOrderedTask order applies).
-    NSMutableArray *resultPredicates = [NSMutableArray new];
-    NSMutableArray *destinationStepIdentifiers = [NSMutableArray new];
-    
-    [resultPredicates addObject:predicateNotHeadache];
-    [destinationStepIdentifiers addObject:@"other_symptom"];
-    
-    ORKPredicateStepNavigationRule *predicateRule =
-    [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:resultPredicates
-                                          destinationStepIdentifiers:destinationStepIdentifiers];
+    predicateRule = [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:@[ predicateNotHeadache ]
+                                                          destinationStepIdentifiers:@[ @"other_symptom" ] ];
     
     [task setNavigationRule:predicateRule forTriggerStepIdentifier:@"symptom"];
 
     
     // From the "severity" step, go to "severe_headache" or "light_headache" depending on the user answer
-    resultPredicates = [NSMutableArray new];
-    destinationStepIdentifiers = [NSMutableArray new];
     
-    NSPredicate *predicate = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateHeadache, predicateSevereYes]];
-    [resultPredicates addObject:predicate];
-    [destinationStepIdentifiers addObject:@"severe_headache"];
+    // User chose YES at the severity step
+    // Equivalent to:
+    //      [NSPredicate predicateWithFormat:
+    //          @"SUBQUERY(SELF, $x, $x.identifier like 'severity' AND $x.answer == YES).@count > 0"];
+    resultSelector = [ORKResultSelector selectorWithResultIdentifier:@"severity"];
+    NSPredicate *predicateSevereYes = [ORKResultPredicate predicateForBooleanQuestionResultWithResultSelector:resultSelector
+                                                                                               expectedAnswer:YES];
+    
+    // User chose NO at the severity step
+    NSPredicate *predicateSevereNo = [ORKResultPredicate predicateForBooleanQuestionResultWithResultSelector:resultSelector
+                                                                                              expectedAnswer:NO];
 
-    predicate = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateHeadache, predicateSevereNo]];
-    [resultPredicates addObject:predicate];
-    [destinationStepIdentifiers addObject:@"light_headache"];
+    NSPredicate *predicateSevereHeadache = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateHeadache, predicateSevereYes]];
+
+    NSPredicate *predicateLightHeadache = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateHeadache, predicateSevereNo]];
     
     predicateRule =
-    [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:resultPredicates
-                                          destinationStepIdentifiers:destinationStepIdentifiers];
+    [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:@[ predicateSevereHeadache,
+                                                                        predicateLightHeadache ]
+                                          destinationStepIdentifiers:@[ @"severe_headache",
+                                                                        @"light_headache" ] ];
     
     [task setNavigationRule:predicateRule forTriggerStepIdentifier:@"severity"];
     
@@ -2036,11 +2302,29 @@ static NSString * const StepNavigationTaskIdentifier = @"step_navigation";
     [task setNavigationRule:directRule forTriggerStepIdentifier:@"severe_headache"];
     [task setNavigationRule:directRule forTriggerStepIdentifier:@"light_headache"];
     [task setNavigationRule:directRule forTriggerStepIdentifier:@"other_symptom"];
+    [task setNavigationRule:directRule forTriggerStepIdentifier:@"survey_skipped"];
 
     directRule = [[ORKDirectStepNavigationRule alloc] initWithDestinationStepIdentifier:ORKNullStepIdentifier];
     [task setNavigationRule:directRule forTriggerStepIdentifier:@"end"];
     
     return task;
+}
+
+#pragma mark - Custom navigation item task
+
+- (id<ORKTask>)makeCustomNavigationItemTask {
+    NSMutableArray *steps = [[NSMutableArray alloc] init];
+    ORKInstructionStep *step1 = [[ORKInstructionStep alloc] initWithIdentifier:@"customNavigationItemTask.step1"];
+    step1.title = @"Custom Navigation Item Title";
+    ORKInstructionStep *step2 = [[ORKInstructionStep alloc] initWithIdentifier:@"customNavigationItemTask.step2"];
+    step2.title = @"Custom Navigation Item Title View";
+    [steps addObject: step1];
+    [steps addObject: step2];
+    return [[ORKOrderedTask alloc] initWithIdentifier: CustomNavigationItemTaskIdentifier steps:steps];
+}
+
+- (IBAction)customNavigationItemButtonTapped:(id)sender {
+    [self beginTaskWithIdentifier:CustomNavigationItemTaskIdentifier];
 }
 
 #pragma mark - Helpers
@@ -2337,6 +2621,14 @@ stepViewControllerWillAppear:(ORKStepViewController *)stepViewController {
                                                                             target:stepViewController.backButtonItem.target
                                                                             action:stepViewController.backButtonItem.action];
         stepViewController.cancelButtonItem.title = @"Cancel1";
+    } else if ([stepViewController.step.identifier isEqualToString:@"customNavigationItemTask.step1"]) {
+        stepViewController.navigationItem.title = @"Custom title";
+    } else if ([stepViewController.step.identifier isEqualToString:@"customNavigationItemTask.step2"]) {
+        NSMutableArray *items = [[NSMutableArray alloc] init];
+        [items addObject:@"Item1"];
+        [items addObject:@"Item2"];
+        [items addObject:@"Item3"];
+        stepViewController.navigationItem.titleView = [[UISegmentedControl alloc] initWithItems:items];
     }
 }
 
@@ -2423,6 +2715,12 @@ stepViewControllerWillAppear:(ORKStepViewController *)stepViewController {
             } else if ([result isKindOfClass:[ORKToneAudiometryResult class]]) {
                 ORKToneAudiometryResult *tor = (ORKToneAudiometryResult *)result;
                 NSLog(@"    %@:     %@", tor.identifier, tor.samples);
+            } else if ([result isKindOfClass:[ORKTimedWalkResult class]]) {
+                ORKTimedWalkResult *twr = (ORKTimedWalkResult *)result;
+                NSLog(@"%@ %@ %@ %@", twr.identifier, @(twr.distanceInMeters), @(twr.timeLimit), @(twr.duration));
+            } else if ([result isKindOfClass:[ORKPSATResult class]]) {
+                ORKPSATResult *pr = (ORKPSATResult *)result;
+                NSLog(@"    %@:     %@\n    Total correct:     %@/%@", pr.identifier, pr.samples, @(pr.totalCorrect), @(pr.length));
             } else {
                 NSLog(@"    %@:   userInfo: %@", result.identifier, result.userInfo);
             }
@@ -2446,7 +2744,7 @@ stepViewControllerWillAppear:(ORKStepViewController *)stepViewController {
             
             if (! error) {
                 NSURL *documents = [NSURL fileURLWithPath:[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject]];
-                NSURL *outputUrl = [documents URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.pdf", [taskViewController.taskRunUUID UUIDString]]];
+                NSURL *outputUrl = [documents URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.pdf", taskViewController.taskRunUUID.UUIDString]];
                 
                 [pdfData writeToURL:outputUrl atomically:YES];
                 NSLog(@"Wrote PDF to %@", [outputUrl path]);
@@ -2468,7 +2766,7 @@ stepViewControllerWillAppear:(ORKStepViewController *)stepViewController {
     }];
 }
 
-#pragma mark UI state restoration
+#pragma mark - UI state restoration
 
 /*
  UI state restoration code for the MainViewController.
@@ -2505,6 +2803,14 @@ stepViewControllerWillAppear:(ORKStepViewController *)stepViewController {
         _taskViewController.defaultResultSource = _lastRouteResult;
     }
     _taskViewController.delegate = self;
+}
+
+#pragma mark - Charts
+
+- (void)testChartsButtonTapped:(id)sender {
+    UIStoryboard *chartStoryboard = [UIStoryboard storyboardWithName:@"Charts" bundle:nil];
+    UIViewController *chartListViewController = [chartStoryboard instantiateInitialViewController];
+    [self presentViewController:chartListViewController animated:YES completion:nil];
 }
 
 @end
