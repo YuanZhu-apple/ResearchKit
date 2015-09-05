@@ -133,6 +133,8 @@ typedef void (^ORKDataStoreEnumerationBlock)(ORKUploadableItem *dataItem, BOOL *
 
 @property (nonatomic, weak) id<ORKPreUploadDataStoreDelegate> delegate;
 
+- (instancetype)init NS_UNAVAILABLE; 
+
 - (instancetype)initWithManagedDirectory:(NSURL *)directory NS_DESIGNATED_INITIALIZER; 
 
 /**

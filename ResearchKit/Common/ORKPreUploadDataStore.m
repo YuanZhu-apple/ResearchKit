@@ -147,67 +147,6 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
 
 @end
 
-// inner class
-@interface ORKDataStoreFileMovingCandidate : NSObject
-
-@property (nonatomic, strong) NSURL *sourceFileURL;
-
-@property (nonatomic, strong) NSURL *destinationFileURL;
-
-@property (nonatomic, strong) ORKFileResult *fileResult;
-
-- (BOOL)moveFile:(NSError **)error;
-
-- (BOOL)rollback:(NSError **)error;
-
-@end
-
-@implementation ORKDataStoreFileMovingCandidate
-
-- (BOOL)moveFile:(NSError **)error {
-    NSError *errorOut = [self moveToDestination:YES];
-    
-    if (error && errorOut) {
-        *error = errorOut;
-    }
-    
-    return (errorOut == nil);
-}
-
-- (NSError *)moveToDestination:(BOOL)toDestination {
-    NSURL *fromURL = self.sourceFileURL;
-    NSURL *toURL = self.destinationFileURL;
-    
-    if (toDestination == NO) {
-        toURL = self.sourceFileURL;
-        fromURL = self.destinationFileURL;
-    }
-    
-    NSFileManager *defaultManager = [NSFileManager defaultManager];
-    NSError *errorOut;
-    [defaultManager moveItemAtURL:fromURL toURL:toURL error:&errorOut];
-    
-    if (errorOut == nil) {
-        // Update the link on fileResult
-        self.fileResult.fileURL = toURL;
-    }
-    
-    return errorOut;
-}
-
-- (BOOL)rollback:(NSError **)error {
-    
-    NSError *errorOut = [self moveToDestination:NO];
-  
-    if (error && errorOut) {
-        *error = errorOut;
-    }
-
-    return (errorOut == nil);
-}
-
-@end
-
 
 @interface ORKUploadableItem ()
 
@@ -500,49 +439,46 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
 
 - (NSError *)moveFilesLinkedWithResult:(ORKTaskResult *)result toDirectory:(NSString *)directoryPath {
     
-    NSArray *stepResults = result.results;
-    NSMutableArray * movedFileCandidates = [NSMutableArray new];
+    NSString *sourceDir = result.outputDirectory.path;
+    
+    NSFileManager *fileMananger = [NSFileManager defaultManager];
+    
+    // DateStore move the output directory as a whole.
+    BOOL isDir;
+    if (sourceDir == nil ||
+        NO == [fileMananger fileExistsAtPath:sourceDir isDirectory:&isDir] ||
+        NO == isDir ) {
+        return nil;
+    }
     
     NSError *error;
     
-    for (ORKStepResult *stepResult in stepResults) {
-        NSArray *results = stepResult.results;
-        for (ORKResult *result in results) {
-            if ([result isKindOfClass:[ORKFileResult class]]) {
-                ORKFileResult *fileResult = (ORKFileResult *)result;
-                
-                NSURL *sourceURL = fileResult.fileURL;
-                if (sourceURL != nil) {
-                    
-                    NSArray *sourcePathComponents = [sourceURL pathComponents];
-                    NSString *destinationFileName = [[sourcePathComponents subarrayWithRange:NSMakeRange(1, sourcePathComponents.count-1)] componentsJoinedByString:@"_"];
-                    NSString *destinationFilePath = [directoryPath stringByAppendingPathComponent:destinationFileName];
-                    
-                    ORKDataStoreFileMovingCandidate *candidate = [ORKDataStoreFileMovingCandidate new];
-                    candidate.sourceFileURL = sourceURL;
-                    candidate.destinationFileURL = [NSURL fileURLWithPath:destinationFilePath];
-                    candidate.fileResult = fileResult;
-                    
-                    [candidate moveFile:&error];
-                    
-                    if (error) {
-                        break;
-                    }
-                    
-                    [movedFileCandidates addObject:candidate];
-                }
-            }
-        }
-        
-        if (error) {
-            break;
-        }
-    }
+    NSString* destinationPath = [directoryPath stringByAppendingPathComponent:result.outputDirectory.lastPathComponent];
     
-    if (error) {
-        for (ORKDataStoreFileMovingCandidate *candidate in movedFileCandidates) {
-            // TODO: what if there is an error during rollback?
-            [candidate rollback:nil];
+    BOOL moved = [fileMananger moveItemAtPath:sourceDir toPath:destinationPath error:&error];
+    
+    // Update file reference
+    if (moved) {
+        NSArray *stepResults = result.results;
+        for (ORKStepResult *stepResult in stepResults) {
+            NSArray *results = stepResult.results;
+            for (ORKResult *result in results) {
+                if ([result isKindOfClass:[ORKFileResult class]]) {
+                     ORKFileResult *fileResult = (ORKFileResult *)result;
+                     if ([fileResult.fileURL.path hasPrefix:sourceDir]) {
+                         
+                         NSString *newPath = [fileResult.fileURL.path stringByReplacingCharactersInRange:NSMakeRange(0, sourceDir.length)
+                                                                                              withString:destinationPath];
+                         
+                         if ([fileMananger fileExistsAtPath:newPath]) {
+                             fileResult.fileURL = [NSURL fileURLWithPath:newPath];
+                         } else {
+                             NSLog(@"UploadStore cannot find moved file! %@", newPath);
+                         }
+                         
+                     }
+                 }
+            }
         }
     }
     
@@ -570,7 +506,7 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
     
     // Handle result
     if (result) {
-        // Move result linked files
+        // Move result outpput dir
         NSString *itemPath = [self directoryPathForIdentifier:itemIdentifier];
         errorOut = [self moveFilesLinkedWithResult:result toDirectory:itemPath];
         ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier);
@@ -591,50 +527,21 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
     
     // Handle fileURL
     if (fileURL) {
-        BOOL isDir;
+        
         NSFileManager *defaultManager = [NSFileManager defaultManager];
-        [defaultManager fileExistsAtPath:fileURL.path isDirectory:&isDir];
-        if (isDir) {
-            NSString* oldDir = fileURL.path;
-            NSArray *files = [defaultManager contentsOfDirectoryAtPath:oldDir error:&errorOut];
-            
-            ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier)
-            
-            NSMutableArray *movedFileCandidates = [NSMutableArray new];
-            
-            for (NSString *file in files) {
-                
-                ORKDataStoreFileMovingCandidate *candidate = [ORKDataStoreFileMovingCandidate new];
-                candidate.sourceFileURL = [NSURL fileURLWithPath:[oldDir stringByAppendingPathComponent:file]];
-                candidate.destinationFileURL = [NSURL fileURLWithPath:[itemPath stringByAppendingPathComponent:file]];
-                [candidate moveFile:&errorOut];
-                
-                if (errorOut) {
-                    break;
-                }
-                
-                [movedFileCandidates addObject:candidate];
-            }
-            
-            if (errorOut) {
-                for (ORKDataStoreFileMovingCandidate *candidate in movedFileCandidates) {
-                    // TODO: what if there is an error during rollback?
-                    [candidate rollback:nil];
-                }
-            }
-            
-        } else {
+        
+        if ([defaultManager fileExistsAtPath:fileURL.path]) {
             [defaultManager moveItemAtPath:fileURL.path
                                     toPath:[itemPath stringByAppendingPathComponent:[fileURL lastPathComponent]]
                                      error:&errorOut];
         }
+        
         ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier);
     }
     
     [self notifyDelegateWithIdentifier:itemIdentifier];
     
     return itemIdentifier;
-    
 }
 
 #pragma mark - Public APIs
