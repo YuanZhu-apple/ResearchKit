@@ -62,6 +62,10 @@ return nil; \
     dispatch_queue_t _queue;
 }
 
+- (NSURL *)managedDirectory {
+    return [NSURL fileURLWithPath:_managedDirectory];
+}
+
 - (instancetype)initWithManagedDirectory:(NSURL *)directory {
     
     self = [super init];

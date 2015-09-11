@@ -98,6 +98,9 @@
         
         ORKUploadableDataStore *dataStore = [[ORKUploadableDataStore alloc] initWithManagedDirectory: [NSURL fileURLWithPath:[self storePath]]];
         dataStore.delegate = self;
+        
+        XCTAssertEqualObjects([self storePath], [dataStore.managedDirectory path]);
+        
         self.delegateCallCount = 0;
         NSInteger newItemCount = 0;
         

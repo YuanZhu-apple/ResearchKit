@@ -70,11 +70,13 @@ typedef void (^ORKDataStoreEnumerationBlock)(ORKUploadableItem *dataItem, BOOL *
 
 @interface ORKUploadableDataStore : NSObject
 
+@property (nonatomic, readonly) NSURL *managedDirectory;
+
 @property (nonatomic, weak) id<ORKUploadableDataStoreDelegate> delegate;
 
 - (instancetype)init NS_UNAVAILABLE;
 
-- (instancetype)initWithManagedDirectory:(NSURL *)directory NS_DESIGNATED_INITIALIZER; 
+- (instancetype)initWithManagedDirectory:(NSURL *)directory NS_DESIGNATED_INITIALIZER;
 
 /**
     Save result to disk and move linked files to managed directory.
