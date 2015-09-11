@@ -30,14 +30,6 @@
 
 
 #import <ResearchKit/ResearchKit.h>
-@import Foundation;
-
-
-typedef NS_ENUM(NSInteger, ORKPreUploadDataItemType) {
-    ORKPreUploadDataItemTypeResult,
-    ORKPreUploadDataItemTypeData,
-    ORKPreUploadDataItemTypeFile
-}; ORK_ENUM_AVAILABLE
 
 typedef NS_ENUM(NSInteger, ORKDataStoreSortingOption) {
     ORKDataStoreSortingOptionByCreationDate     = 0,
@@ -56,84 +48,31 @@ typedef NS_OPTIONS(NSInteger, ORKDataStoreExclusionOption) {
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef void (^ORKDataStoreFilesEnumerationBlock)(NSURL *fileURL, BOOL *stop);
 
-@class ORKUploadableItemTracker;
+@class ORKUploadableDataStore;
+@class ORKUploadableItem;
 
-@interface ORKUploadableItem : NSObject
+@protocol ORKUploadableDataStoreDelegate <NSObject>
 
-@property (nonatomic, copy, readonly) NSString *identifier;
-
-@property (nonatomic, copy, readonly) NSURL *directoryURL;
-
-//@property (nonatomic, assign, readonly) ORKPreUploadDataItemType itemType;
-
-@property (nonatomic, copy, readonly) NSDictionary *metadata;
-
-- (NSError *)setMetadata:(NSDictionary *)metadata;
-
-@property (nonatomic, readonly) NSDate * __nullable creationDate;             // Standard File Attributes
-
-- (BOOL)enumerateManagedFiles:(ORKDataStoreFilesEnumerationBlock)block error:(NSError * __autoreleasing *)error;
-
-@property (nonatomic, readonly) ORKUploadableItemTracker *tracker;
-
-@end
-
-@interface ORKUploadableDataItem : ORKUploadableItem
-
-@property (nonatomic, strong, readonly) NSData *data;
-
-@end
-
-@interface ORKUploadableResultItem : ORKUploadableItem
-
-@property (nonatomic, strong, readonly) ORKTaskResult * __nullable result;
-
-@end
-
-@interface ORKUploadableFileItem : ORKUploadableItem
-
-@property (nonatomic, copy, readonly) NSURL * __nullable fileURL;
-
-@property (nonatomic, readonly, getter=isDirectory) BOOL directory;
-
-@end
-
-@interface ORKUploadableItemTracker : NSObject
-
-- (instancetype)initWithUploadableItem:(ORKUploadableItem *)uploadableItem;
-
-@property (nonatomic, assign, readonly, getter=isUploaded) BOOL uploaded;
-
-- (void)markUploaded;
-
-@property (nonatomic, assign, readonly) NSUInteger retryCount;
-
-- (void)increaseRetryCount;
-
-@property (nonatomic, readonly) NSDate * __nullable lastUploadDate;
-
-@end
-
-
-
-@class ORKPreUploadDataStore;
-
-@protocol ORKPreUploadDataStoreDelegate <NSObject>
-
-- (void)dataStore:(ORKPreUploadDataStore *)dataStore didReceiveItemWithIdentifier:(NSString *)identifier;
+- (void)dataStore:(ORKUploadableDataStore *)dataStore didReceiveItemWithIdentifier:(NSString *)identifier;
 
 @end
 
 
 typedef void (^ORKDataStoreEnumerationBlock)(ORKUploadableItem *dataItem, BOOL *stop);
 
-@interface ORKPreUploadDataStore : NSObject
+/**
+ The `ORKUploadableDataStore` class manages `ORKTaskResult` and files to be uploaded.
+ 
+ `ORKUploadableDataStore` take the ownership of the data by moving them into its managed directory.
+ 
+ */
 
-@property (nonatomic, weak) id<ORKPreUploadDataStoreDelegate> delegate;
+@interface ORKUploadableDataStore : NSObject
 
-- (instancetype)init NS_UNAVAILABLE; 
+@property (nonatomic, weak) id<ORKUploadableDataStoreDelegate> delegate;
+
+- (instancetype)init NS_UNAVAILABLE;
 
 - (instancetype)initWithManagedDirectory:(NSURL *)directory NS_DESIGNATED_INITIALIZER; 
 
@@ -143,7 +82,7 @@ typedef void (^ORKDataStoreEnumerationBlock)(ORKUploadableItem *dataItem, BOOL *
 - (NSString *)addTaskResult:(ORKTaskResult *)result metadata:(nullable NSDictionary *)metadata error:(NSError * __autoreleasing *)error;
 
 /**
-    Save data to disk
+    Save data
  */
 - (NSString *)addData:(NSData *)data metadata:(nullable NSDictionary *)metadata error:(NSError * __autoreleasing *)error;
 
@@ -152,9 +91,15 @@ typedef void (^ORKDataStoreEnumerationBlock)(ORKUploadableItem *dataItem, BOOL *
  */
 - (NSString *)addFileURL:(NSURL *)fileURL metadata:(nullable NSDictionary *)metadata error:(NSError * __autoreleasing *)error;
 
-- (ORKUploadableItem *)dataItemForIdentifier:(NSString *)identifier;
+/**
+    Get a mananged item with an identifier
+ */
+- (ORKUploadableItem *)managedItemForIdentifier:(NSString *)identifier;
 
-- (NSError *)removeDataItemWithIdentifier:(NSString *)identifer;
+/**
+    Remove a `ORKUploadableItem` from this store. Everything adssociated with this item will be deleted.
+ */
+- (NSError *)removeManagedItemWithIdentifier:(NSString *)identifer;
 
 /**
     Sorted by createTime / lastUploadTime, exclude uploaded items
@@ -167,12 +112,5 @@ typedef void (^ORKDataStoreEnumerationBlock)(ORKUploadableItem *dataItem, BOOL *
 
 @end
 
-@interface ORKReferenceUploader : NSObject
-
-- (void)initWithDataStore:(ORKPreUploadDataStore *)dataStore;
-
-- (void)startWithItemIdentifier:(NSString *)identifier;
-
-@end
 
 NS_ASSUME_NONNULL_END

@@ -28,44 +28,25 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#import "ORKUploadableItem.h"
 
-#import <ResearchKit/ORKDefines.h>
+NS_ASSUME_NONNULL_BEGIN
 
-#import <ResearchKit/ORKTask.h>
-#import <ResearchKit/ORKOrderedTask.h>
-#import <ResearchKit/ORKNavigableOrderedTask.h>
-#import <ResearchKit/ORKStep.h>
-#import <ResearchKit/ORKQuestionStep.h>
-#import <ResearchKit/ORKInstructionStep.h>
-#import <ResearchKit/ORKFormStep.h>
-#import <ResearchKit/ORKStepNavigationRule.h>
-#import <ResearchKit/ORKImageCaptureStep.h>
+static NSString * const ORKUploadableFileMetadata = @".ork.metadata.plist";
+static NSString * const ORKUploadableFileInfo = @".ork.item.info.plist";
+static NSString * const ORKUploadableFileResult = @".ork.result.data";
+static NSString * const ORKUploadableFileData = @".ork.data.data";
 
-#import <ResearchKit/ORKAnswerFormat.h>
-#import <ResearchKit/ORKHealthAnswerFormat.h>
+@interface ORKUploadableItem ()
 
-#import <ResearchKit/ORKResult.h>
-#import <ResearchKit/ORKResultPredicate.h>
+- (instancetype)initWithItemDirectoy:(NSURL *)directoryURL;
 
-#import <ResearchKit/ORKTaskViewController.h>
-#import <ResearchKit/ORKStepViewController.h>
++ (NSError *)saveDictionary:(NSDictionary *)dictionary to:(NSString *)path;
 
-#import <ResearchKit/ORKConsentDocument.h>
-#import <ResearchKit/ORKConsentSignature.h>
-#import <ResearchKit/ORKConsentSection.h>
-#import <ResearchKit/ORKVisualConsentStep.h>
-#import <ResearchKit/ORKConsentReviewStep.h>
-#import <ResearchKit/ORKConsentSharingStep.h>
++ (NSError *)saveData:(NSData *)data to:(NSString *)path;
 
-#import <ResearchKit/ORKRecorder.h>
-#import <ResearchKit/ORKActiveStep.h>
-#import <ResearchKit/ORKActiveStepViewController.h>
+- (instancetype)makeSubclassInstance;
 
+@end
 
-#import <ResearchKit/ORKUploadableItem.h>
-#import <ResearchKit/ORKUploadableDataStore.h>
-#import <ResearchKit/ORKRangedPoint.h>
-#import <ResearchKit/ORKLineGraphChartView.h>
-#import <ResearchKit/ORKDiscreteGraphChartView.h>
-#import <ResearchKit/ORKPieChartView.h>
-
+NS_ASSUME_NONNULL_END

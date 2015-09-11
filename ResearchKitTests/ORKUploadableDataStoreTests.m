@@ -33,11 +33,13 @@
 #import <Foundation/Foundation.h>
 #import <ResearchKit/ResearchKit.h>
 
-@interface ORKDataStoreTests : XCTestCase
+@interface ORKUploadableDataStoreTests : XCTestCase<ORKUploadableDataStoreDelegate>
+
+@property (nonatomic) NSInteger delegateCallCount;
 
 @end
 
-@implementation ORKDataStoreTests
+@implementation ORKUploadableDataStoreTests
 
 - (void)setUp {
     [super setUp];
@@ -55,15 +57,28 @@
     return [[NSFileManager defaultManager] fileExistsAtPath:path];
 }
 
-- (NSString *)basePath {
+- (NSString *)documentPath {
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *basePath = ([paths count] > 0) ? [paths objectAtIndex:0] : nil;
-    basePath = [basePath stringByAppendingPathComponent:@"test"];
-    [[NSFileManager defaultManager] createDirectoryAtPath:basePath
+    return ([paths count] > 0) ? [paths objectAtIndex:0] : nil;
+}
+
+- (NSString *)sourcePath {
+    NSString *sourcePath = [[self documentPath] stringByAppendingPathComponent:@"source"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:sourcePath
                               withIntermediateDirectories:YES
                                                attributes:nil
                                                     error:nil];
-    return basePath;
+    return sourcePath;
+}
+
+
+- (NSString *)basePath {
+    NSString *testPath = [[self documentPath] stringByAppendingPathComponent:@"test"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:testPath
+                              withIntermediateDirectories:YES
+                                               attributes:nil
+                                                    error:nil];
+    return testPath;
 }
 
 - (NSString *)storePath {
@@ -73,21 +88,27 @@
     return storePath;
 }
 
+- (void)dataStore:(ORKUploadableDataStore *)dataStore didReceiveItemWithIdentifier:(NSString *)identifier {
+    self.delegateCallCount++;
+}
+
 - (void)testDataStoreGeneral {
     
     [self measureBlock:^{
-    
-        ORKPreUploadDataStore *dataStore = [[ORKPreUploadDataStore alloc] initWithManagedDirectory: [NSURL fileURLWithPath:[self storePath]]];
-        NSInteger creationCount = 0;
+        
+        ORKUploadableDataStore *dataStore = [[ORKUploadableDataStore alloc] initWithManagedDirectory: [NSURL fileURLWithPath:[self storePath]]];
+        dataStore.delegate = self;
+        self.delegateCallCount = 0;
+        NSInteger newItemCount = 0;
         
         {
             // addTaskResult
-            ORKTaskResult *result = [[ORKTaskResult alloc] initWithTaskIdentifier:@"abcd" taskRunUUID:[NSUUID UUID] outputDirectory:nil];
+            ORKTaskResult *result = [[ORKTaskResult alloc] initWithTaskIdentifier:@"abcd" taskRunUUID:[NSUUID UUID] outputDirectory:[NSURL fileURLWithPath:[self sourcePath]]];
             result.startDate = [NSDate dateWithTimeIntervalSinceNow:-100.0];
             result.endDate = [NSDate dateWithTimeIntervalSinceNow:+100.0];
             
             ORKFileResult *fileResult = [[ORKFileResult alloc] initWithIdentifier:@"file1"];
-            NSString *samplePath = [[self basePath] stringByAppendingPathComponent:@"result.plist"];
+            NSString *samplePath = [[self sourcePath] stringByAppendingPathComponent:@"result.plist"];
             [@{@"sample":@"sample"} writeToFile:samplePath atomically:YES];
             fileResult.fileURL = [NSURL fileURLWithPath:samplePath];
             
@@ -95,11 +116,12 @@
             result.results = @[stepResult];
             
             NSError *error;
-            [dataStore addTaskResult:result metadata:@{@"key1": @"resultValue"} error:&error];
-            XCTAssertNil(error, @"");
-            creationCount++;
-            XCTAssertFalse([self fileExistAt:samplePath]);
+            NSString *identifier = [dataStore addTaskResult:result metadata:@{@"key1": @"resultValue"} error:&error];
             
+            XCTAssertNotNil(identifier);
+            XCTAssertNil(error, @"");
+            XCTAssertFalse([self fileExistAt:samplePath]);
+            newItemCount++;
         }
         
         {
@@ -108,10 +130,11 @@
             NSData *data = [str dataUsingEncoding:NSUTF8StringEncoding];
             
             NSError *error;
-            [dataStore addData:data metadata:@{@"key": @"dataValue"} error:&error];
-            XCTAssertNil(error, @"");
-            creationCount++;
+            NSString *identifier = [dataStore addData:data metadata:@{@"key": @"dataValue"} error:&error];
             
+            XCTAssertNotNil(identifier);
+            XCTAssertNil(error, @"");
+            newItemCount++;
         }
         
         {
@@ -119,16 +142,17 @@
             NSError *error;
             NSString *samplePath = [[self basePath] stringByAppendingPathComponent:@"sample.plist"];
             [@{@"sample":@"sample"} writeToFile:samplePath atomically:YES];
-            [dataStore addFileURL:[NSURL fileURLWithPath:samplePath] metadata:@{@"key": @"fileValue"} error:&error];
             
+            NSString *identifier = [dataStore addFileURL:[NSURL fileURLWithPath:samplePath] metadata:@{@"key": @"fileValue"} error:&error];
+            
+            XCTAssertNotNil(identifier);
             XCTAssertNil(error, @"");
-            creationCount++;
             XCTAssertFalse([self fileExistAt:samplePath]);
-            
+            newItemCount++;
         }
         
         {
-            // addFolderURL
+            // addFileURL: folder
             NSError *error;
             NSString *folderPath = [[self basePath] stringByAppendingPathComponent:@"srcFolder"];
             
@@ -144,19 +168,17 @@
             NSString *samplePath3 = [folderPath stringByAppendingPathComponent:@"sample3.plist"];
             [@{@"sample3":@"sample3"} writeToFile:samplePath3 atomically:YES];
             
-            [dataStore addFileURL:[NSURL fileURLWithPath:folderPath] metadata:@{@"key": @"folderValue"} error:&error];
+            NSString *identifier = [dataStore addFileURL:[NSURL fileURLWithPath:folderPath] metadata:@{@"key": @"folderValue"} error:&error];
             
+            XCTAssertNotNil(identifier);
             XCTAssertNil(error, @"");
-            creationCount++;
-            XCTAssertFalse([self fileExistAt:samplePath1]);
-            XCTAssertFalse([self fileExistAt:samplePath2]);
-            XCTAssertFalse([self fileExistAt:samplePath3]);
-            
+            XCTAssertFalse([self fileExistAt:folderPath]);
+            newItemCount++;
         }
         
         __block NSInteger count = 0;
         
-        [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL * stop) {
+        [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL * stop) {
             count++;
             
             XCTAssertNotNil(item, @"");
@@ -167,53 +189,63 @@
             NSLog(@"identifier = %@", item.identifier);
             NSLog(@"dirURL = %@", item.directoryURL);
             
-            if (item.itemType == ORKPreUploadDataItemTypeData) {
-                NSLog(@"data = %@", item.data);
-                XCTAssertNotNil(item.data, @"");
+            if ([item isKindOfClass:[ORKUploadableDataItem class]]) {
                 
-            } else if (item.itemType == ORKPreUploadDataItemTypeFile) {
-                NSLog(@"file = %@", item.fileURL);
-                XCTAssertNotNil(item.fileURL, @"%@", item.identifier);
-                XCTAssertTrue([self fileExistAt:item.fileURL.path]);
+                ORKUploadableDataItem *dataItem = (ORKUploadableDataItem *)item;
+                
+                NSLog(@"data = %@", dataItem.data);
+                XCTAssertNotNil(dataItem.data, @"");
+                
+            } else if ([item isKindOfClass:[ORKUploadableFileItem class]]) {
+                
+                ORKUploadableFileItem *fileItem = (ORKUploadableFileItem *)item;
+                
+                NSLog(@"file = %@", fileItem.fileURL);
+                XCTAssertNotNil(fileItem.fileURL, @"%@", item.identifier);
+                XCTAssertTrue([self fileExistAt:fileItem.fileURL.path]);
                 
                 __block NSInteger filesCount = 0;
                 __block NSError *error;
                 
                 [item enumerateManagedFiles:^(NSURL *fileURL, BOOL *stop) {
                     filesCount++;
-                    NSLog(@"====%@", fileURL);  
+                    NSLog(@"====%@", fileURL);
                 } error:&error];
                 
                 XCTAssertGreaterThanOrEqual(filesCount, 1, @"enumerationFailed");
                 XCTAssertNil(error);
                 
-            } else if (item.itemType == ORKPreUploadDataItemTypeResult) {
-                NSLog(@"result = %@", item.result);
-                NSLog(@"resultFile = %@", item.fileURL);
-                XCTAssertNotNil(item.result, @"");
-                XCTAssertNotNil(item.fileURL, @"");
-                XCTAssertTrue([self fileExistAt:item.fileURL.path]);
+            } else if ([item isKindOfClass:[ORKUploadableResultItem class]]) {
+                
+                ORKUploadableResultItem *resultItem = (ORKUploadableResultItem *)item;
+                
+                NSLog(@"result = %@", resultItem.result);
+                XCTAssertNotNil(resultItem.result, @"");
+                
             }
             
+           
             XCTAssertNotNil(item.creationDate, @"");
             NSLog(@"c_date = %@", item.creationDate);
             
+            // Test tracker functions
+            ORKUploadableItemTracker *tracker = item.tracker;
             
-            XCTAssertEqual(item.retryCount, 0);
-            XCTAssertNil(item.lastUploadDate, @"");
+            XCTAssertEqual(tracker.retryCount, 0);
+            XCTAssertNil(tracker.lastUploadDate, @"");
             
-            [item increaseRetryCount];
-            XCTAssertNotNil(item.lastUploadDate, @"");
-            XCTAssertEqual(item.retryCount, 1);
+            [tracker increaseRetryCount];
+            XCTAssertNotNil(tracker.lastUploadDate, @"");
+            XCTAssertEqual(tracker.retryCount, 1);
             
-            XCTAssertFalse(item.uploaded);
+            XCTAssertFalse(tracker.uploaded);
             
-            [item markUploaded];
-            XCTAssertTrue(item.uploaded);
-            [item increaseRetryCount];
-            XCTAssertEqual(item.retryCount, 1);
+            [tracker markUploaded];
+            XCTAssertTrue(tracker.uploaded);
+            [tracker increaseRetryCount];
+            XCTAssertEqual(tracker.retryCount, 1);
             
-            NSLog(@"meta = %@]", item.metadata);
+            NSLog(@"meta = %@", item.metadata);
             
             XCTAssertNotNil(item.metadata, @"");
             XCTAssertEqual(item.metadata.count, 1);
@@ -223,24 +255,26 @@
             XCTAssertNotNil(item.metadata, @"");
             XCTAssertEqual(item.metadata.count, 2);
             
-            [dataStore removeDataItemWithIdentifier:item.identifier];
-            XCTAssertEqual(item.retryCount, 0);
-            XCTAssertFalse(item.uploaded);
+            [dataStore removeManagedItemWithIdentifier:item.identifier];
+            XCTAssertEqual(tracker.retryCount, 0);
+            XCTAssertFalse(tracker.uploaded);
             error = [item setMetadata:@{@"key1":@"1", @"key2":@"2"}];
             XCTAssertNotNil(error, @"");
             
-            
+            XCTAssertNil([dataStore managedItemForIdentifier:item.identifier]);
         }
                                exclusion:0
                                  sorting:ORKDataStoreSortingOptionByCreationDate
                                ascending:YES
                                    error:nil];
         
-        XCTAssertEqual(count, creationCount);
-        NSLog(@"total %@", @(count));
         
+        XCTAssertEqual(count, newItemCount);
+        XCTAssertEqual(self.delegateCallCount, newItemCount);
+        
+        // Check if all items are removed
         count = 0;
-        [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL * stop) {
+        [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL * stop) {
             count++;
         }
                                exclusion:0
@@ -253,20 +287,20 @@
     }];
 }
 
-- (void)testDataStoreNewItemRollback {
+- (void)testDataStoreWithBadSourceFilePath {
     
-    ORKPreUploadDataStore *dataStore = [[ORKPreUploadDataStore alloc] initWithManagedDirectory: [NSURL fileURLWithPath:[self storePath]]];
+    ORKUploadableDataStore *dataStore = [[ORKUploadableDataStore alloc] initWithManagedDirectory: [NSURL fileURLWithPath:[self storePath]]];
     
     {
         // addTaskResult
-        ORKTaskResult *taskResult = [[ORKTaskResult alloc] initWithTaskIdentifier:@"abcd" taskRunUUID:[NSUUID UUID] outputDirectory:nil];
+        ORKTaskResult *taskResult = [[ORKTaskResult alloc] initWithTaskIdentifier:@"abcd"
+                                                                      taskRunUUID:[NSUUID UUID]
+                                                                  outputDirectory:[NSURL fileURLWithPath:[self basePath]]];
         
         NSString *samplePath1 = [[self basePath] stringByAppendingPathComponent:@"result1.plist"];
         [@{@"sample":@"sample"} writeToFile:samplePath1 atomically:YES];
-        NSString *samplePath2 = [[self basePath] stringByAppendingPathComponent:@"result2.plist"];
-        [@{@"sample":@"sample"} writeToFile:samplePath2 atomically:YES];
-        NSString *samplePath3 = [self basePath];
-    
+        
+        
         
         NSMutableArray *stepResults = [NSMutableArray array];
         
@@ -276,38 +310,50 @@
             ORKStepResult *stepResult = [[ORKStepResult alloc] initWithStepIdentifier:@"step1" results:@[goodFileResult]];
             [stepResults addObject:stepResult];
         }
-        
-        {
-            ORKFileResult *goodFileResult = [[ORKFileResult alloc] initWithIdentifier:@"file2"];
-            goodFileResult.fileURL = [NSURL fileURLWithPath:samplePath2];
-            ORKStepResult *stepResult = [[ORKStepResult alloc] initWithStepIdentifier:@"step2" results:@[goodFileResult]];
-            [stepResults addObject:stepResult];
-        }
-        
-        {
-            ORKFileResult *badFileResult = [[ORKFileResult alloc] initWithIdentifier:@"file3"];
-            badFileResult.fileURL = [NSURL fileURLWithPath:samplePath3];
-            ORKStepResult *stepResult = [[ORKStepResult alloc] initWithStepIdentifier:@"step3" results:@[badFileResult]];
-            [stepResults addObject:stepResult];
-        }
+    
         
         taskResult.results = [stepResults copy];
         
         
         NSError *error;
         [dataStore addTaskResult:taskResult metadata:@{} error:&error];
-        XCTAssertNotNil(error, @"");
+        XCTAssertNotNil(error, @"%@", error);
         XCTAssertTrue([self fileExistAt:samplePath1]);
-        XCTAssertTrue([self fileExistAt:samplePath2]);
-        XCTAssertTrue([self fileExistAt:samplePath3]);
+    }
+    
+    {
+        // Add unexist file
+        NSString *filePath = [[self basePath] stringByAppendingPathComponent:@"fileNotExist.plist"];
+    
         
+        NSError *error;
+        NSString *identifier = [dataStore addFileURL:[NSURL fileURLWithPath:filePath]
+                                            metadata:nil
+                                               error:&error];
+        
+        XCTAssertNotNil(error, @"%@", error);
+        XCTAssertNil(identifier, @"%@", error);
+    }
+    
+    {
+        // Add unmoveable directory
+        NSString *filePath = [self basePath];
+        
+        
+        NSError *error;
+        NSString *identifier = [dataStore addFileURL:[NSURL fileURLWithPath:filePath]
+                                            metadata:nil
+                                               error:&error];
+        
+        XCTAssertNotNil(error, @"%@", error);
+        XCTAssertNil(identifier, @"%@", error);
     }
     
 }
 
 - (void)testDataStoreEnumerationSorting {
     
-    ORKPreUploadDataStore *dataStore = [[ORKPreUploadDataStore alloc] initWithManagedDirectory: [NSURL fileURLWithPath:[self storePath]]];
+    ORKUploadableDataStore *dataStore = [[ORKUploadableDataStore alloc] initWithManagedDirectory: [NSURL fileURLWithPath:[self storePath]]];
     
     const NSString *kCreationKey = @"c";
     const NSInteger kMaxIndex = 2;
@@ -326,8 +372,8 @@
     // creationIndex : retryCount
     NSDictionary *retryAllocation = @{@(0):@(2), @(10):@(3), @(20): @(1)};
     
-    // ORKDataStoreSortingOptionByCreationDate && ascending
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    // Test: ORKDataStoreSortingOptionByCreationDate && ascending
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
         NSNumber *creationIndex = item.metadata[kCreationKey];
         XCTAssertEqual(creationIndex.integerValue, enumerateIndex * 10);
@@ -338,7 +384,7 @@
         NSNumber *numberOfRetry = retryAllocation[creationIndex];
         NSInteger count = numberOfRetry.integerValue;
         while (count > 0) {
-            [item increaseRetryCount];
+            [item.tracker increaseRetryCount];
             count--;
         }
         sleep(1);
@@ -349,9 +395,9 @@
                                error:&error];
     
     
-    // ORKDataStoreSortingOptionByCreationDate && decending
+    // Test: ORKDataStoreSortingOptionByCreationDate && decending
     enumerateIndex = kMaxIndex;
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
         NSNumber *creationIndex = item.metadata[kCreationKey];
         XCTAssertEqual(creationIndex.integerValue, enumerateIndex * 10);
@@ -366,9 +412,9 @@
     // enumerateIndex : creationIndex
     NSDictionary *retryTable = @{@(0):@(20), @(1):@(0), @(2): @(10)};
     
-    // ORKDataStoreSortingOptionByRetryCount && ascending
+    // Test: ORKDataStoreSortingOptionByRetryCount && ascending
     enumerateIndex = 0;
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
         
         NSNumber *creationIndex2 = retryTable[@(enumerateIndex)];
@@ -384,9 +430,9 @@
                                error:&error];
     
     
-    // ORKDataStoreSortingOptionByRetryCount && decending
+    // Test: ORKDataStoreSortingOptionByRetryCount && decending
     enumerateIndex = kMaxIndex;
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
         
         NSNumber *creationIndex2 = retryTable[@(enumerateIndex)];
@@ -401,9 +447,9 @@
                            ascending:NO
                                error:&error];
     
-    // ORKDataStoreSortingOptionByLastUploadDate && ascending
+    // Test: ORKDataStoreSortingOptionByLastUploadDate && ascending
     enumerateIndex = 0;
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
         NSNumber *creationIndex = item.metadata[kCreationKey];
         XCTAssertEqual(creationIndex.integerValue, enumerateIndex * 10);
@@ -414,9 +460,9 @@
                            ascending:YES
                                error:&error];
     
-    // ORKDataStoreSortingOptionByLastUploadDate && ascending
+    // Test: ORKDataStoreSortingOptionByLastUploadDate && ascending
     enumerateIndex = kMaxIndex;
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
         NSNumber *creationIndex = item.metadata[kCreationKey];
         XCTAssertEqual(creationIndex.integerValue, enumerateIndex * 10);
@@ -427,12 +473,12 @@
                            ascending:NO
                                error:&error];
     
-   
+    
 }
 
 - (void)testDataStoreEnumerationExclusion {
     
-    ORKPreUploadDataStore *dataStore = [[ORKPreUploadDataStore alloc] initWithManagedDirectory: [NSURL fileURLWithPath:[self storePath]]];
+    ORKUploadableDataStore *dataStore = [[ORKUploadableDataStore alloc] initWithManagedDirectory: [NSURL fileURLWithPath:[self storePath]]];
     
     const NSString *kCreationKey = @"c";
     const NSInteger kTotal = 4;
@@ -446,16 +492,16 @@
     
     NSError *error;
     // Set values
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
         NSNumber *creationIndex = item.metadata[kCreationKey];
         
         if (creationIndex.integerValue%2 == 0) {
-            [item markUploaded];
+            [item.tracker markUploaded];
         }
         
         if (creationIndex.integerValue%2 == 1) {
-            [item increaseRetryCount];
+            [item.tracker increaseRetryCount];
         }
         
     }
@@ -466,9 +512,9 @@
     
     // ORKDataStoreExclusionOptionUploadedItems
     __block NSInteger count = 0;
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
-        XCTAssertFalse(item.isUploaded);
+        XCTAssertFalse(item.tracker.isUploaded);
         count++;
     }
                            exclusion:ORKDataStoreExclusionOptionUploadedItems
@@ -480,9 +526,9 @@
     
     // ORKDataStoreExclusionOptionUnuploadedItems
     count = 0;
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
-        XCTAssertTrue(item.isUploaded);
+        XCTAssertTrue(item.tracker.isUploaded);
         count++;
     }
                            exclusion:ORKDataStoreExclusionOptionUnuploadedItems
@@ -494,9 +540,9 @@
     
     // ORKDataStoreExclusionOptionTriedItems
     count = 0;
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
-        XCTAssertEqual(item.retryCount, 0);
+        XCTAssertEqual(item.tracker.retryCount, 0);
         count++;
     }
                            exclusion:ORKDataStoreExclusionOptionTriedItems
@@ -508,9 +554,9 @@
     
     // ORKDataStoreExclusionOptionUntriedItems
     count = 0;
-    [dataStore enumerateManagedItems:^(ORKPreUploadDataItem *item, BOOL *stop) {
+    [dataStore enumerateManagedItems:^(ORKUploadableItem *item, BOOL *stop) {
         
-        XCTAssertEqual(item.retryCount, 1);
+        XCTAssertEqual(item.tracker.retryCount, 1);
         count++;
     }
                            exclusion:ORKDataStoreExclusionOptionUntriedItems
@@ -521,6 +567,5 @@
     XCTAssertEqual(count, kTotal/2);
     
 }
-
 
 @end

@@ -29,346 +29,35 @@
  */
 
 
-#import "ORKPreUploadDataStore.h"
+#import "ORKUploadableDataStore.h"
+#import "ORKUploadableItem_Internal.h"
 #import "ORKErrors.h"
 #import "ORKDefines_Private.h"
 
-static NSString * const kFileMetadata = @".ork.metadata.plist";
-static NSString * const kFileInfo = @".ork.item.info.plist";
-static NSString * const kFileResult = @".ork.result.data";
-static NSString * const kFileData = @".ork.data.data";
-
 #define ORK_HANDLE_ERROR(errorOut) \
 if (errorOut) { \
-    if (error) { \
-        *error = errorOut; \
-    } \
-    return nil; \
+if (error) { \
+*error = errorOut; \
+} \
+return nil; \
 }
 
 #define ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier) \
 if (errorOut) { \
-    if (error) { \
-    *error = errorOut; \
-    } \
-    [self removeDataItemWithIdentifier:itemIdentifier]; \
-    return nil; \
+if (error) { \
+*error = errorOut; \
+} \
+[self removeManagedItemWithIdentifier:itemIdentifier]; \
+return nil; \
 }
 
-static NSString const *ItemUploadedKey = @"uploaded";
-static NSString const *ItemRetryCountKey = @"retryCount";
-static NSString const *ItemRetryDateKey = @"retryDate";
-static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
-
-@implementation ORKUploadableItemTracker {
-    __weak ORKUploadableItem *_item;
-    dispatch_queue_t _queue;
-}
-
-- (instancetype)initWithUploadableItem:(ORKUploadableItem *)uploadableItem {
-    NSParameterAssert(uploadableItem);
-    self = [super init];
-    if (self) {
-        _item = uploadableItem;
-    }
-    return self;
-}
-
-- (NSDictionary *)infoDictionary {
-    return [NSDictionary dictionaryWithContentsOfFile:[self pathOfFile:kFileInfo]];
-}
-
-- (NSString *)pathOfFile:(NSString *)fileName {
-    return [_item.directoryURL.path stringByAppendingPathComponent:fileName];
-}
-
-- (dispatch_queue_t)queue {
-    if (_queue == nil) {
-        NSString *queueId = [ItemQueuePrefix stringByAppendingString:_item.identifier];
-        _queue = dispatch_queue_create([queueId cStringUsingEncoding:NSUTF8StringEncoding], DISPATCH_QUEUE_SERIAL);
-    }
-    return _queue;
-}
-
-- (BOOL)isUploaded {
-    NSNumber *value = [self infoDictionary][ItemUploadedKey];
-    return value? value.boolValue : NO;
-}
-
-- (void)markUploaded {
-    
-    dispatch_sync(self.queue, ^{
-        [self queue_markUploaded];
-    });
-}
-
-- (void)queue_markUploaded {
-    NSMutableDictionary *dictionary = [NSMutableDictionary dictionaryWithDictionary:[self infoDictionary]];
-    dictionary[ItemUploadedKey] = @(YES);
-    dictionary[ItemRetryDateKey] = [NSDate date];
-    [dictionary writeToFile:[self pathOfFile:kFileInfo] atomically:YES];
-}
-
-- (NSUInteger)retryCount {
-    NSNumber *value = [self infoDictionary][ItemRetryCountKey];
-    return value? value.unsignedIntegerValue : 0;
-}
-
-- (NSDate *)lastUploadDate {
-    NSDate *value = [self infoDictionary][ItemRetryDateKey];
-    return value;
-}
-
-- (void)increaseRetryCount {
-    
-    dispatch_sync(self.queue, ^{
-        [self queue_increaseRetryCount];
-    });
-}
-
-- (void)queue_increaseRetryCount {
-    
-    if (self.uploaded) {
-        return;
-    }
-    
-    NSMutableDictionary *dictionary = [NSMutableDictionary dictionaryWithDictionary:[self infoDictionary]];
-    NSNumber *count = dictionary[ItemRetryCountKey];
-    if (count == nil) {
-        count = @(1);
-    } else {
-        count = @(count.integerValue + 1);
-    }
-    dictionary[ItemRetryDateKey] = [NSDate date];
-    dictionary[ItemRetryCountKey] = count;
-    [dictionary writeToFile:[self pathOfFile:kFileInfo] atomically:YES];
-    
-}
-
-@end
-
-
-@interface ORKUploadableItem ()
-
-- (instancetype)initWithItemDirectoy:(NSURL *)directory;
-
-@property (nonatomic, copy, readwrite) NSString *identifier;
+@interface ORKUploadableDataStore ()
 
 @property (nonatomic, copy, readwrite) NSURL *directoryURL;
 
 @end
 
-@implementation ORKUploadableItem {
-    dispatch_queue_t _queue;
-    NSDate *_creationDate;
-    ORKUploadableItemTracker *_tracker;
-}
-
-- (instancetype)initWithItemDirectoy:(NSURL *)directoryURL {
-
-    self = [super init];
-    if (self) {
-        self.identifier = directoryURL.lastPathComponent;
-        self.directoryURL = directoryURL;
-    }
-    return self;
-}
-
-#pragma mark - Helpers
-
-+ (NSError *)saveData:(NSData *)data to:(NSString *)path {
-    NSError *error;
-    [data writeToFile:path options:NSDataWritingAtomic|NSDataWritingFileProtectionCompleteUnlessOpen error:&error];
-    return error;
-}
-
-+ (NSError *)saveDictionary:(NSDictionary *)dictionary to:(NSString *)path {
-    NSError *error;
-    NSData *plistData = [NSPropertyListSerialization dataWithPropertyList:dictionary
-                                                                   format:NSPropertyListXMLFormat_v1_0
-                                                                  options:0
-                                                                    error:&error];
-    
-    if (error) {
-        return error;
-    }
-    
-    return [self saveData:plistData to:path];
-}
-
-- (NSString *)pathOfFile:(NSString *)fileName {
-    return [self.directoryURL.path stringByAppendingPathComponent:fileName];
-}
-
-- (ORKPreUploadDataItemType)itemType {
-    NSFileManager *defaultManager = [NSFileManager defaultManager];
-    
-    if ([defaultManager fileExistsAtPath:[self pathOfFile:kFileResult]]) {
-        return ORKPreUploadDataItemTypeResult;
-    } else if ([defaultManager fileExistsAtPath:[self pathOfFile:kFileData]]) {
-        return ORKPreUploadDataItemTypeData;
-    }
-    
-    return ORKPreUploadDataItemTypeFile;
-}
-
-- (BOOL)isValid {
-    BOOL isDir;
-    BOOL exist = [[NSFileManager defaultManager] fileExistsAtPath:self.directoryURL.path isDirectory:&isDir];
-    return exist&&isDir;
-}
-
-- (dispatch_queue_t)queue {
-    if (_queue == nil) {
-        NSString *queueId = [ItemQueuePrefix stringByAppendingString:self.identifier];
-        _queue = dispatch_queue_create([queueId cStringUsingEncoding:NSUTF8StringEncoding], DISPATCH_QUEUE_SERIAL);
-    }
-    return _queue;
-}
-
-#pragma mark - Managed Attribute
-
-- (ORKUploadableItemTracker *)tracker {
-    
-    if (_tracker == nil) {
-        _tracker = [[ORKUploadableItemTracker alloc] initWithUploadableItem:self];
-    }
-    
-    return _tracker;
-}
-
-- (NSDictionary *)metadata {
-    return [NSDictionary dictionaryWithContentsOfFile:[self pathOfFile:kFileMetadata]];
-}
-
-- (NSError *)setMetadata:(NSDictionary *)metadata {
-    
-    NSError *errorOut;
-    
-    if (metadata == nil) {
-        metadata = [NSDictionary new];
-    }
-    
-    errorOut = [[self class] saveDictionary:metadata to:[self pathOfFile:kFileMetadata]];
-    
-    return errorOut;
-}
-
-- (ORKTaskResult *)result {
-    ORKTaskResult *result = [NSKeyedUnarchiver unarchiveObjectWithFile:[self pathOfFile:kFileResult]];
-    return result;
-}
-
-- (NSData *)data {
-    return [NSData dataWithContentsOfFile:[self pathOfFile:kFileData]];
-}
-
-- (NSURL *)fileURL {
-    
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    NSArray * dirContents =
-    [fileManager contentsOfDirectoryAtURL:self.directoryURL
-               includingPropertiesForKeys:@[]
-                                  options:NSDirectoryEnumerationSkipsHiddenFiles
-                                    error:nil];
-    if (dirContents.count > 1) {
-        NSLog(@"%@", dirContents);
-    }
-    return dirContents.firstObject;
-}
-
-- (NSDate *)creationDate {
-    
-    if ([self isValid] == NO) {
-        return nil;
-    }
-    
-    if (_creationDate == nil) {
-        NSFileManager *fileManager = [NSFileManager defaultManager];
-        NSDictionary *attributes = [fileManager attributesOfItemAtPath:self.directoryURL.path error:nil];
-
-        if (attributes != nil) {
-            _creationDate = (NSDate *)[attributes objectForKey: NSFileCreationDate];
-        }
-    }
-    
-    return _creationDate;
-}
-
-#pragma mark - Enumerate
-
-- (BOOL)enumerateManagedFiles:(ORKDataStoreFilesEnumerationBlock)block error:(NSError * __autoreleasing *)error {
-    
-    if (!block) {
-        @throw [NSException exceptionWithName:NSInvalidArgumentException reason:@"Block parameter is required" userInfo:nil];
-    }
-    
-    __block BOOL success = NO;
-    dispatch_sync(self.queue, ^{
-        success = [self queue_enumerateManagedFiles:block
-                                              error:error];
-    });
-    return success;
-}
-
-- (BOOL)queue_enumerateManagedFiles:(ORKDataStoreFilesEnumerationBlock)block error:(NSError * __autoreleasing *)error {
-    
-    static NSArray *keys = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        keys = @[NSURLIsDirectoryKey];
-    });
-    
-    NSFileManager *manager = [NSFileManager defaultManager];
-    NSEnumerator *enumerator = [manager enumeratorAtURL:self.directoryURL
-                             includingPropertiesForKeys:@[]
-                                                options:(NSDirectoryEnumerationOptions)(NSDirectoryEnumerationSkipsHiddenFiles)
-                                           errorHandler:nil];
-    
-    NSError *errorOut = nil;
-    NSMutableArray *urls = [NSMutableArray array];
-    for (NSURL *url in enumerator) {
-        
-        NSDictionary *resources = [url resourceValuesForKeys:keys error:&errorOut];
-        if (errorOut) {
-            // If there's been an error getting the resource values, give up
-            break;
-        }
-        if ([resources[NSURLIsDirectoryKey] boolValue]) {
-            // Skip directories
-            continue;
-        }
-        
-        [urls addObject:url];
-    }
-    
-    if (! errorOut) {
-        
-        for (NSURL *url in urls) {
-            BOOL stop = NO;
-            
-            block(url, &stop);
-            if (stop) {
-                break;
-            }
-        }
-    }
-    
-    if (error && errorOut) {
-        *error = errorOut;
-    }
-    return (errorOut ? NO : YES);
-}
-
-@end
-
-@interface ORKPreUploadDataStore ()
-
-@property (nonatomic, copy, readwrite) NSURL *directoryURL;
-
-@end
-
-@implementation ORKPreUploadDataStore {
+@implementation ORKUploadableDataStore {
     NSString *_managedDirectory;
     dispatch_queue_t _queue;
 }
@@ -429,7 +118,7 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
     
     if (metadata) {
         // Save plist to disk
-        NSString *metaPath = [itemPath stringByAppendingPathComponent:kFileMetadata];
+        NSString *metaPath = [itemPath stringByAppendingPathComponent:ORKUploadableFileMetadata];
         errorOut = [ORKUploadableItem saveDictionary:metadata to:metaPath];;
         ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier);
     }
@@ -513,14 +202,14 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
         
         // Save result object
         NSData *resultData = [NSKeyedArchiver archivedDataWithRootObject:result];
-        NSString *resultDataPath = [itemPath stringByAppendingPathComponent:kFileResult];
+        NSString *resultDataPath = [itemPath stringByAppendingPathComponent:ORKUploadableFileResult];
         errorOut = [ORKUploadableItem saveData:resultData to:resultDataPath];
         ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier);
     }
     
     // Handle NSData
     if (data) {
-        NSString *dataPath = [itemPath stringByAppendingPathComponent:kFileData];
+        NSString *dataPath = [itemPath stringByAppendingPathComponent:ORKUploadableFileData];
         errorOut = [ORKUploadableItem saveData:data to:dataPath];
         ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier);
     }
@@ -529,12 +218,11 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
     if (fileURL) {
         
         NSFileManager *defaultManager = [NSFileManager defaultManager];
+       
+        [defaultManager moveItemAtPath:fileURL.path
+                                toPath:[itemPath stringByAppendingPathComponent:[fileURL lastPathComponent]]
+                                 error:&errorOut];
         
-        if ([defaultManager fileExistsAtPath:fileURL.path]) {
-            [defaultManager moveItemAtPath:fileURL.path
-                                    toPath:[itemPath stringByAppendingPathComponent:[fileURL lastPathComponent]]
-                                     error:&errorOut];
-        }
         
         ORK_HANDLE_ERROR_AND_REMOVE_DIRECTORY(errorOut, itemIdentifier);
     }
@@ -559,12 +247,8 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
 }
 
 - (NSString *)addFileURL:(NSURL *)fileURL metadata:(nullable NSDictionary *)metadata error:(NSError **)error{
-    
-    BOOL isDir;
-    NSFileManager *defaultManager = [NSFileManager defaultManager];
-    BOOL exist = [defaultManager fileExistsAtPath:fileURL.path isDirectory:&isDir];
-    NSParameterAssert(fileURL != nil && exist);
-    
+
+    NSParameterAssert(fileURL != nil);    
     return [self addTaskResult:nil data:nil fileURL:fileURL metadata:metadata error:error];
 }
 
@@ -626,6 +310,7 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
         
         ORKUploadableItem *item = [[ORKUploadableItem alloc] initWithItemDirectoy:url];
         ORKUploadableItemTracker *tracker = item.tracker;
+        
         if ( (exclusionOption & ORKDataStoreExclusionOptionUploadedItems) && tracker.isUploaded) {
             continue;
         }
@@ -641,8 +326,8 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
         if ( (exclusionOption & ORKDataStoreExclusionOptionUntriedItems) && tracker.retryCount == 0) {
             continue;
         }
-
-        [items addObject:item];
+        
+        [items addObject:[item makeSubclassInstance]];
     }
     
     if (! errorOut) {
@@ -689,7 +374,7 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
 
 
 
-- (ORKUploadableItem *)dataItemForIdentifier:(NSString *)identifier {
+- (ORKUploadableItem *)managedItemForIdentifier:(NSString *)identifier {
 
     NSString *path = [self directoryPathForIdentifier:identifier];
     BOOL exist = [[NSFileManager defaultManager] fileExistsAtPath:path];
@@ -697,7 +382,7 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
     return exist? [[ORKUploadableItem alloc] initWithItemDirectoy:[NSURL fileURLWithPath:path]] : nil;
 }
 
-- (NSError *)removeDataItemWithIdentifier:(NSString *)identifier {
+- (NSError *)removeManagedItemWithIdentifier:(NSString *)identifier {
     
     NSError *error;
     NSFileManager *defaultManager = [NSFileManager defaultManager];

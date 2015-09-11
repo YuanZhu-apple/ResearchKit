@@ -28,44 +28,66 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#import <ResearchKit/ResearchKit.h>
 
-#import <ResearchKit/ORKDefines.h>
+NS_ASSUME_NONNULL_BEGIN
 
-#import <ResearchKit/ORKTask.h>
-#import <ResearchKit/ORKOrderedTask.h>
-#import <ResearchKit/ORKNavigableOrderedTask.h>
-#import <ResearchKit/ORKStep.h>
-#import <ResearchKit/ORKQuestionStep.h>
-#import <ResearchKit/ORKInstructionStep.h>
-#import <ResearchKit/ORKFormStep.h>
-#import <ResearchKit/ORKStepNavigationRule.h>
-#import <ResearchKit/ORKImageCaptureStep.h>
+typedef void (^ORKDataStoreFilesEnumerationBlock)(NSURL *fileURL, BOOL *stop);
 
-#import <ResearchKit/ORKAnswerFormat.h>
-#import <ResearchKit/ORKHealthAnswerFormat.h>
+@class ORKUploadableItemTracker;
 
-#import <ResearchKit/ORKResult.h>
-#import <ResearchKit/ORKResultPredicate.h>
+@interface ORKUploadableItem : NSObject
 
-#import <ResearchKit/ORKTaskViewController.h>
-#import <ResearchKit/ORKStepViewController.h>
+@property (nonatomic, copy, readonly) NSString *identifier;
 
-#import <ResearchKit/ORKConsentDocument.h>
-#import <ResearchKit/ORKConsentSignature.h>
-#import <ResearchKit/ORKConsentSection.h>
-#import <ResearchKit/ORKVisualConsentStep.h>
-#import <ResearchKit/ORKConsentReviewStep.h>
-#import <ResearchKit/ORKConsentSharingStep.h>
+@property (nonatomic, copy, readonly) NSURL *directoryURL;
 
-#import <ResearchKit/ORKRecorder.h>
-#import <ResearchKit/ORKActiveStep.h>
-#import <ResearchKit/ORKActiveStepViewController.h>
+@property (nonatomic, copy, readonly) NSDictionary *metadata;
 
+- (NSError *)setMetadata:(NSDictionary *)metadata;
 
-#import <ResearchKit/ORKUploadableItem.h>
-#import <ResearchKit/ORKUploadableDataStore.h>
-#import <ResearchKit/ORKRangedPoint.h>
-#import <ResearchKit/ORKLineGraphChartView.h>
-#import <ResearchKit/ORKDiscreteGraphChartView.h>
-#import <ResearchKit/ORKPieChartView.h>
+@property (nonatomic, readonly) NSDate * __nullable creationDate;
 
+- (BOOL)enumerateManagedFiles:(ORKDataStoreFilesEnumerationBlock)block error:(NSError * __autoreleasing *)error;
+
+@property (nonatomic, readonly) ORKUploadableItemTracker *tracker;
+
+@end
+
+@interface ORKUploadableDataItem : ORKUploadableItem
+
+@property (nonatomic, strong, readonly) NSData *data;
+
+@end
+
+@interface ORKUploadableResultItem : ORKUploadableItem
+
+@property (nonatomic, strong, readonly) ORKTaskResult * __nullable result;
+
+@end
+
+@interface ORKUploadableFileItem : ORKUploadableItem
+
+@property (nonatomic, copy, readonly) NSURL * __nullable fileURL;
+
+@property (nonatomic, readonly, getter=isDirectory) BOOL directory;
+
+@end
+
+@interface ORKUploadableItemTracker : NSObject
+
+- (instancetype)initWithUploadableItem:(ORKUploadableItem *)uploadableItem;
+
+@property (nonatomic, assign, readonly, getter=isUploaded) BOOL uploaded;
+
+- (void)markUploaded;
+
+@property (nonatomic, assign, readonly) NSUInteger retryCount;
+
+- (void)increaseRetryCount;
+
+@property (nonatomic, readonly) NSDate * __nullable lastUploadDate;
+
+@end
+
+NS_ASSUME_NONNULL_END
