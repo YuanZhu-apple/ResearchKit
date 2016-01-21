@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2015, Apple Inc. All rights reserved.
+ Copyright (c) 2016, Apple Inc. All rights reserved.
  
  Redistribution and use in source and binary forms, with or without modification,
  are permitted provided that the following conditions are met:
@@ -29,47 +29,18 @@
  */
 
 
-#import "AppDelegate.h"
-#import "MainViewController.h"
-#import "DataCollectionTester.h"
+#import <Foundation/Foundation.h>
+#import <ResearchKit/ResearchKit.h>
 
-@implementation AppDelegate {
-    DataCollectionTester *_dataCollectionTester;
-}
 
-/*
- For UI state restoration, we must configure the app and make the window key
- in willFinishLaunchingWithOptions:. Otherwise, the restored task view controller
- will animate in.
- */
-- (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    
-    _dataCollectionTester = [DataCollectionTester new];
-    [_dataCollectionTester start];
-    
-    self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
-    self.window.backgroundColor = [UIColor whiteColor];
-    self.window.rootViewController = [MainViewController new];
-    [self.window makeKeyAndVisible];
-    return YES;
-}
+@interface DataCollectionTester : NSObject
 
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    return YES;
-}
+- (void)start;
 
-#pragma mark UI state restoration
++ (ORKDataCollectionManager *)collectionManager;
 
-/*
- These methods are needed in order to enable UI state restoration.
- */
++ (ORKUploadableDataStore *)dataStore;
 
-- (BOOL)application:(UIApplication *)application shouldSaveApplicationState:(NSCoder *)coder {
-    return YES;
-}
-
-- (BOOL)application:(UIApplication *)application shouldRestoreApplicationState:(NSCoder *)coder {
-    return YES;
-}
++ (void)resetTestPath;
 
 @end

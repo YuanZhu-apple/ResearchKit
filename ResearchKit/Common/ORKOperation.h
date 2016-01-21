@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2015, Apple Inc. All rights reserved.
+ Copyright (c) 2016, Apple Inc. All rights reserved.
  
  Redistribution and use in source and binary forms, with or without modification,
  are permitted provided that the following conditions are met:
@@ -29,47 +29,44 @@
  */
 
 
-#import "AppDelegate.h"
-#import "MainViewController.h"
-#import "DataCollectionTester.h"
+#import <Foundation/Foundation.h>
 
-@implementation AppDelegate {
-    DataCollectionTester *_dataCollectionTester;
-}
 
-/*
- For UI state restoration, we must configure the app and make the window key
- in willFinishLaunchingWithOptions:. Otherwise, the restored task view controller
- will animate in.
+typedef NS_ENUM(NSInteger, ORKOperationState) {
+    ORKOperationReady,
+    ORKOperationExecuting,
+    ORKOperationFinished
+};
+
+@class ORKOperation;
+
+typedef void (^ORKOperationBlock)(ORKOperation *operation);
+
+/**
+ * A concurrent operation for collecting data for upload.
+ *
  */
-- (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    
-    _dataCollectionTester = [DataCollectionTester new];
-    [_dataCollectionTester start];
-    
-    self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
-    self.window.backgroundColor = [UIColor whiteColor];
-    self.window.rootViewController = [MainViewController new];
-    [self.window makeKeyAndVisible];
-    return YES;
-}
+@interface ORKOperation : NSOperation
 
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    return YES;
-}
+@property(nonatomic, strong) NSRecursiveLock *lock;
+@property (readwrite, nonatomic, assign) ORKOperationState state;
+@property (nonatomic, strong) NSError *error;
 
-#pragma mark UI state restoration
-
-/*
- These methods are needed in order to enable UI state restoration.
+/**
+ * Block that will be called inside the lock during -start,
+ * just after transitioning to RKOperationExecuting.
  */
+@property (nonatomic, strong) ORKOperationBlock startBlock;
 
-- (BOOL)application:(UIApplication *)application shouldSaveApplicationState:(NSCoder *)coder {
-    return YES;
-}
 
-- (BOOL)application:(UIApplication *)application shouldRestoreApplicationState:(NSCoder *)coder {
-    return YES;
-}
+/**
+ * Finishes the operation cleanly.
+ */
+- (void)safeFinish;
+
+/**
+ * Sets the error to indicate a timeout, and finishes.
+ */
+- (void)doTimeout;
 
 @end

@@ -42,6 +42,7 @@
 
 #import <ResearchKit/ORKResult_Private.h>
 #import "ORKESerialization.h"
+#import <HealthKit/HealthKit.h>
 
 
 @interface ClassProperty : NSObject
@@ -202,6 +203,8 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
     ORKLocation *location = [self initWithCoordinate:CLLocationCoordinate2DMake(2.0, 3.0) region:[[CLCircularRegion alloc] initWithCenter:CLLocationCoordinate2DMake(2.0, 3.0) radius:100.0 identifier:@"identifier"] userInput:@"addressString" addressDictionary:@{@"city":@"city", @"street":@"street"}];
     return location;
 }));
+ORK_MAKE_TEST_INIT(HKCorrelationType, ^{return [[self class] correlationTypeForIdentifier:HKCorrelationTypeIdentifierBloodPressure];});
+ORK_MAKE_TEST_INIT(HKSampleType, ^{return [[self class] quantityTypeForIdentifier:HKQuantityTypeIdentifierActiveEnergyBurned];});
 
 @interface ORKJSONSerializationTests : XCTestCase <NSKeyedUnarchiverDelegate>
 
@@ -312,6 +315,10 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
     
     NSArray *classesExcludedForORKESerialization = @[
                                                      [ORKStepNavigationRule class],     // abstract base class
+                                                     [ORKMotionActivityCollector class],
+                                                     [ORKHealthCollector class],
+                                                     [ORKHealthCorrelationCollector class],
+                                                     [ORKCollector class],
                                                      ];
     
     if ((classesExcludedForORKESerialization.count + classesWithORKSerialization.count) != classesWithSecureCoding.count) {
@@ -531,6 +538,8 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
         [instance setValue:[[ORKLocation alloc] initWithCoordinate:CLLocationCoordinate2DMake(index? 2.0 : 3.0, 3.0) region:[[CLCircularRegion alloc] initWithCenter:CLLocationCoordinate2DMake(2.0, 3.0) radius:100.0 identifier:@"identifier"] userInput:@"addressString" addressDictionary:@{@"city":@"city", @"street":@"street"}] forKey:p.propertyName];
     } else if (p.propertyClass == [CLCircularRegion class]) {
         [instance setValue:[[CLCircularRegion alloc] initWithCenter:CLLocationCoordinate2DMake(index? 2.0 : 3.0, 3.0) radius:100.0 identifier:@"identifier"] forKey:p.propertyName];
+    } else if (p.propertyClass == [NSDate class]) {
+        [instance setValue:[NSDate dateWithTimeIntervalSinceReferenceDate:index ? 0 : 1] forKey:p.propertyName];
     } else if (equality && (p.propertyClass == [UIImage class])) {
         // do nothing - meaningless for the equality check
         return NO;
@@ -590,6 +599,9 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
                                               @"ORKContinuousScaleAnswerFormat.maximumImage"
                                               ];
     
+    NSSet *decodingClassSet = [NSSet setWithArray:classesWithSecureCoding];
+    decodingClassSet = [decodingClassSet setByAddingObjectsFromArray:@[[HKQuantityType class], [HKCorrelationType class], [HKUnit class], [NSDate class], [HKQueryAnchor class]]];
+    
     // Test Each class
     for (Class aClass in classesWithSecureCoding) {
         id instance = [self instanceForClass:aClass];
@@ -616,7 +628,8 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
         NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:data];
         unarchiver.requiresSecureCoding = YES;
         unarchiver.delegate = self;
-        id newInstance = [unarchiver decodeObjectOfClasses:[NSSet setWithArray:classesWithSecureCoding] forKey:NSKeyedArchiveRootObjectKey];
+        
+        id newInstance = [unarchiver decodeObjectOfClasses:decodingClassSet forKey:NSKeyedArchiveRootObjectKey];
         
         // Set of classes we can check for equality. Would like to get rid of this once we implement
         NSSet *checkableClasses = [NSSet setWithObjects:[NSNumber class], [NSString class], [NSDictionary class], [NSURL class], nil];
@@ -658,7 +671,7 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
         NSKeyedUnarchiver *unarchiver2 = [[NSKeyedUnarchiver alloc] initForReadingWithData:data2];
         unarchiver2.requiresSecureCoding = YES;
         unarchiver2.delegate = self;
-        id newInstance2 = [unarchiver2 decodeObjectOfClasses:[NSSet setWithArray:classesWithSecureCoding] forKey:NSKeyedArchiveRootObjectKey];
+        id newInstance2 = [unarchiver2 decodeObjectOfClasses:decodingClassSet forKey:NSKeyedArchiveRootObjectKey];
         NSData *data3 = [NSKeyedArchiver archivedDataWithRootObject:newInstance2];
         
         if (![data isEqualToData:data2]) { // allow breakpointing
@@ -689,8 +702,9 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
          (c == [ORKImageChoice class]) ||
          ([c isSubclassOfClass:[ORKAnswerFormat class]]) ||
          ([c isSubclassOfClass:[ORKRecorderConfiguration class]]) ||
-         (c == [ORKLocation class]))
-    ) {
+         (c == [ORKLocation class])) ||
+         (c == [HKCorrelationType class]) ||
+         (c == [HKSampleType class]) ) {
         return [[c alloc] orktest_init];
     }
     
@@ -739,7 +753,6 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
     // Test Each class
     for (Class aClass in classesWithSecureCodingAndCopying) {
         id instance = [self instanceForClass:aClass];
-        
         // Find all properties of this class
         NSMutableArray *propertyNames = [NSMutableArray array];
         unsigned int count;
@@ -750,7 +763,7 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
             
             if ([propertyExclusionList containsObject: p.propertyName] == NO) {
                 if (p.isPrimitiveType == NO) {
-                    if ([instance valueForKey:p.propertyName] == nil) {
+                    if ([instance valueForKey:p.propertyName] == nil || p.propertyClass == [NSDate class]) {
                         [self applySomeValueToClassProperty:p forObject:instance index:0 forEqualityCheck:YES];
                     }
                 }
@@ -774,13 +787,15 @@ ORK_MAKE_TEST_INIT(ORKLocation, (^{
                         // Totally immutable object.
                         continue;
                     }
-                    if ([self applySomeValueToClassProperty:p forObject:copiedInstance index:1 forEqualityCheck:YES])
-                    {
+                    if ([self applySomeValueToClassProperty:p forObject:copiedInstance index:1 forEqualityCheck:YES]) {
                         if ([copiedInstance isEqual:instance]) {
                             XCTAssertNotEqualObjects(copiedInstance, instance);
                         }
+                        
                         [self applySomeValueToClassProperty:p forObject:copiedInstance index:0 forEqualityCheck:YES];
-                        XCTAssertEqualObjects(copiedInstance, instance);
+                        if (![copiedInstance isEqual: instance]) {
+                            XCTAssertEqualObjects(copiedInstance, instance);
+                        }
                         
                         [copiedInstance setValue:nil forKey:p.propertyName];
                         XCTAssertNotEqualObjects(copiedInstance, instance);

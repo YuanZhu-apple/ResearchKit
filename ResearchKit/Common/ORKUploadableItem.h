@@ -28,7 +28,9 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #import <ResearchKit/ResearchKit.h>
+
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -36,6 +38,7 @@ typedef void (^ORKDataStoreFilesEnumerationBlock)(NSURL *fileURL, BOOL *stop);
 
 @class ORKUploadableItemTracker;
 
+ORK_CLASS_AVAILABLE
 @interface ORKUploadableItem : NSObject
 
 @property (nonatomic, copy, readonly) NSString *identifier;
@@ -54,18 +57,24 @@ typedef void (^ORKDataStoreFilesEnumerationBlock)(NSURL *fileURL, BOOL *stop);
 
 @end
 
+
+ORK_CLASS_AVAILABLE
 @interface ORKUploadableDataItem : ORKUploadableItem
 
 @property (nonatomic, strong, readonly) NSData *data;
 
 @end
 
+
+ORK_CLASS_AVAILABLE
 @interface ORKUploadableResultItem : ORKUploadableItem
 
 @property (nonatomic, strong, readonly) ORKTaskResult * __nullable result;
 
 @end
 
+
+ORK_CLASS_AVAILABLE
 @interface ORKUploadableFileItem : ORKUploadableItem
 
 @property (nonatomic, copy, readonly) NSURL * __nullable fileURL;
@@ -74,6 +83,8 @@ typedef void (^ORKDataStoreFilesEnumerationBlock)(NSURL *fileURL, BOOL *stop);
 
 @end
 
+
+ORK_CLASS_AVAILABLE
 @interface ORKUploadableItemTracker : NSObject
 
 - (instancetype)initWithUploadableItem:(ORKUploadableItem *)uploadableItem;

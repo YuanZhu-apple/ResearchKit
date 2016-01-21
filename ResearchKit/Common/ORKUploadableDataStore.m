@@ -33,6 +33,8 @@
 #import "ORKUploadableItem_Internal.h"
 #import "ORKErrors.h"
 #import "ORKDefines_Private.h"
+#import "ORKHelpers.h"
+
 
 #define ORK_HANDLE_ERROR(errorOut) \
 if (errorOut) { \
@@ -166,7 +168,7 @@ return nil; \
                          if ([fileMananger fileExistsAtPath:newPath]) {
                              fileResult.fileURL = [NSURL fileURLWithPath:newPath];
                          } else {
-                             NSLog(@"UploadStore cannot find moved file! %@", newPath);
+                             ORK_Log_Debug(@"UploadStore cannot find moved file! %@", newPath);
                          }
                          
                      }

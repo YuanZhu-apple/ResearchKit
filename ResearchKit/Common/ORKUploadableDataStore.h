@@ -31,6 +31,7 @@
 
 #import <ResearchKit/ResearchKit.h>
 
+
 typedef NS_ENUM(NSInteger, ORKDataStoreSortingOption) {
     ORKDataStoreSortingOptionByCreationDate     = 0,
     ORKDataStoreSortingOptionByLastUploadDate,
@@ -65,9 +66,8 @@ typedef void (^ORKDataStoreEnumerationBlock)(ORKUploadableItem *dataItem, BOOL *
  The `ORKUploadableDataStore` class manages `ORKTaskResult` and files to be uploaded.
  
  `ORKUploadableDataStore` take the ownership of the data by moving them into its managed directory.
- 
  */
-
+ORK_CLASS_AVAILABLE
 @interface ORKUploadableDataStore : NSObject
 
 @property (nonatomic, readonly) NSURL *managedDirectory;

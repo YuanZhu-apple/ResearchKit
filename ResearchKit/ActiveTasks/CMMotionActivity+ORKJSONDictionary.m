@@ -38,6 +38,7 @@ static NSString *const ActivityStationary = @"stationary";
 static NSString *const ActivityWalking = @"walking";
 static NSString *const ActivityRunning = @"running";
 static NSString *const ActivityAutomotive = @"automotive";
+static NSString *const ActivityCycling = @"cycling";
 static NSString *const StartDateKey = @"startDate";
 static NSString *const EndDateKey = @"endDate";
 
@@ -64,6 +65,9 @@ static NSArray *activityArray(CMMotionActivity *activity) {
     }
     if (activity.automotive) {
         [array addObject:ActivityAutomotive];
+    }
+    if (activity.cycling) {
+        [array addObject:ActivityCycling];
     }
     return array;
 }

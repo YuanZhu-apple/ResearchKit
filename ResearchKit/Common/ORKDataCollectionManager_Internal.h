@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2015, Apple Inc. All rights reserved.
+ Copyright (c) 2016, Apple Inc. All rights reserved.
  
  Redistribution and use in source and binary forms, with or without modification,
  are permitted provided that the following conditions are met:
@@ -29,47 +29,18 @@
  */
 
 
-#import "AppDelegate.h"
-#import "MainViewController.h"
-#import "DataCollectionTester.h"
+#import <ResearchKit/ResearchKit.h>
+#import <CoreMotion/CoreMotion.h>
 
-@implementation AppDelegate {
-    DataCollectionTester *_dataCollectionTester;
-}
 
-/*
- For UI state restoration, we must configure the app and make the window key
- in willFinishLaunchingWithOptions:. Otherwise, the restored task view controller
- will animate in.
- */
-- (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    
-    _dataCollectionTester = [DataCollectionTester new];
-    [_dataCollectionTester start];
-    
-    self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
-    self.window.backgroundColor = [UIColor whiteColor];
-    self.window.rootViewController = [MainViewController new];
-    [self.window makeKeyAndVisible];
-    return YES;
-}
+@interface ORKDataCollectionManager ()
 
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    return YES;
-}
+@property (nonatomic, strong, readonly) HKHealthStore *healthStore;
 
-#pragma mark UI state restoration
+@property (nonatomic, strong, readonly) CMMotionActivityManager *activityManager;
 
-/*
- These methods are needed in order to enable UI state restoration.
- */
+- (void)onWorkQueue:(BOOL (^)(ORKDataCollectionManager *manager))block;
 
-- (BOOL)application:(UIApplication *)application shouldSaveApplicationState:(NSCoder *)coder {
-    return YES;
-}
-
-- (BOOL)application:(UIApplication *)application shouldRestoreApplicationState:(NSCoder *)coder {
-    return YES;
-}
+- (void)onWorkQueueAsync:(BOOL (^)(ORKDataCollectionManager *manager))block;
 
 @end

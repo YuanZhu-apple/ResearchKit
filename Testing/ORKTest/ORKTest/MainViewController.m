@@ -37,6 +37,7 @@
 #import "DynamicTask.h"
 #import "AppDelegate.h"
 #import "ORKTest-Swift.h"
+#import "DataCollectionInspectionViewController.h"
 
 
 #define DefineStringKey(x) static NSString *const x = @#x
@@ -365,6 +366,7 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
                        @[ // Miscellaneous
                            @"Custom Navigation Item",
                            @"Dynamic Task",
+                           @"Inspect Collected Data",
                            @"Interruptible Task",
                            @"Navigable Ordered Task",
                            @"Navigable Loop Task",
@@ -2837,6 +2839,12 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
     UIView *superview = self.view.superview;
     [self.view removeFromSuperview];
     [superview addSubview:self.view];
+}
+
+- (void)inspectCollectedDataButtonTapped:(id)sender {
+    DataCollectionInspectionViewController *inspector = [[DataCollectionInspectionViewController alloc] initWithStyle:UITableViewStyleGrouped];
+    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:inspector];
+    [self presentViewController:navigationController animated:YES completion:nil];
 }
 
 #pragma mark - Navigable Ordered Task

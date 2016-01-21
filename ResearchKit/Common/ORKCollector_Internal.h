@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2015, Apple Inc. All rights reserved.
+ Copyright (c) 2016, Apple Inc. All rights reserved.
  
  Redistribution and use in source and binary forms, with or without modification,
  are permitted provided that the following conditions are met:
@@ -29,47 +29,54 @@
  */
 
 
-#import "AppDelegate.h"
-#import "MainViewController.h"
-#import "DataCollectionTester.h"
+#import "ORKCollector.h"
+#import "ORKDataCollectionManager_Internal.h"
 
-@implementation AppDelegate {
-    DataCollectionTester *_dataCollectionTester;
-}
 
-/*
- For UI state restoration, we must configure the app and make the window key
- in willFinishLaunchingWithOptions:. Otherwise, the restored task view controller
- will animate in.
- */
-- (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    
-    _dataCollectionTester = [DataCollectionTester new];
-    [_dataCollectionTester start];
-    
-    self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
-    self.window.backgroundColor = [UIColor whiteColor];
-    self.window.rootViewController = [MainViewController new];
-    [self.window makeKeyAndVisible];
-    return YES;
-}
+@class ORKOperation;
 
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    return YES;
-}
+@interface ORKCollector () <NSSecureCoding>
 
-#pragma mark UI state restoration
+- (instancetype)initWithIdentifier:(NSString *)identifier;
 
-/*
- These methods are needed in order to enable UI state restoration.
- */
+- (ORKOperation *)collectionOperationWithManager:(ORKDataCollectionManager *)mananger;
 
-- (BOOL)application:(UIApplication *)application shouldSaveApplicationState:(NSCoder *)coder {
-    return YES;
-}
+@end
 
-- (BOOL)application:(UIApplication *)application shouldRestoreApplicationState:(NSCoder *)coder {
-    return YES;
-}
+
+@protocol ORKHealthCollectable <NSObject>
+
+- (HKSampleType *)sampleType;
+- (NSArray<HKSampleType *> *)collectableSampleTypes;
+- (NSDate *)startDate;
+- (HKQueryAnchor *)lastAnchor;
+- (void)setLastAnchor:(HKQueryAnchor *)lastAnchor;
+
+@end
+
+
+@interface ORKHealthCollector() <ORKHealthCollectable>
+
+- (instancetype)initWithSampleType:(HKSampleType *)objectType unit:(HKUnit *)unit startDate:(NSDate *)startDate;
+
+@property (copy) HKQueryAnchor *lastAnchor;
+
+@end
+
+
+@interface ORKHealthCorrelationCollector() <ORKHealthCollectable>
+
+- (instancetype)initWithCorrelationType:(HKCorrelationType *)objectType sampleTypes:(NSArray *)sampleTypes units:(NSArray *)units startDate:(NSDate *)startDate;
+
+@property (copy) HKQueryAnchor *lastAnchor;
+
+@end
+
+
+@interface ORKMotionActivityCollector()
+
+- (instancetype)initWithStartDate:(NSDate *)startDate;
+
+@property (copy) NSDate *lastDate;
 
 @end

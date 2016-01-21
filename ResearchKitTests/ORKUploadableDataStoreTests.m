@@ -28,10 +28,12 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #import <UIKit/UIKit.h>
 #import <XCTest/XCTest.h>
 #import <Foundation/Foundation.h>
 #import <ResearchKit/ResearchKit.h>
+
 
 @interface ORKUploadableDataStoreTests : XCTestCase<ORKUploadableDataStoreDelegate>
 
@@ -39,17 +41,11 @@
 
 @end
 
+
 @implementation ORKUploadableDataStoreTests
 
-- (void)setUp {
-    [super setUp];
-    // Put setup code here. This method is called before the invocation of each test method in the class.
-}
-
 - (void)tearDown {
-    // Put teardown code here. This method is called after the invocation of each test method in the class.
     [super tearDown];
-    
     [[NSFileManager defaultManager] removeItemAtPath:[self basePath] error:nil];
 }
 

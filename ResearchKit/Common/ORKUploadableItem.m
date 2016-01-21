@@ -30,6 +30,7 @@
 
 
 #import "ORKUploadableItem_Internal.h"
+#import "ORKHelpers.h"
 
 
 typedef NS_ENUM(NSInteger, ORKUploadableItemType) {
@@ -38,12 +39,11 @@ typedef NS_ENUM(NSInteger, ORKUploadableItemType) {
     ORKUploadableItemTypeFile
 }; ORK_ENUM_AVAILABLE
 
+
 static NSString const *ItemUploadedKey = @"uploaded";
 static NSString const *ItemRetryCountKey = @"retryCount";
 static NSString const *ItemRetryDateKey = @"retryDate";
 static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
-
-
 
 
 @interface ORKUploadableItem ()
@@ -181,7 +181,7 @@ static NSString const *ItemQueuePrefix = @"ResearchKit.UploadableItem.";
                                   options:NSDirectoryEnumerationSkipsHiddenFiles
                                     error:nil];
     if (dirContents.count > 1) {
-        NSLog(@"%@", dirContents);
+        ORK_Log_Debug(@"%@", dirContents);
     }
     return dirContents.firstObject;
 }
