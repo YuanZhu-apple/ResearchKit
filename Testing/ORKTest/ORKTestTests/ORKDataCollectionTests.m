@@ -172,11 +172,12 @@ static ORKDataCollectionManager *createManagerWithCollecters (NSURL *url,
     
     manager.delegate = self;
   
-    [manager tryCollectingData];
+    [manager startPassiveCollection];
     
     [self waitForExpectationsWithTimeout:1.0 handler:^(NSError *error) {
         XCTAssertNil(error);
     }];
+    
 }
 
 #pragma mark - delegate

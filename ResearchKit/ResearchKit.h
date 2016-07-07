@@ -37,9 +37,11 @@
 #import <ResearchKit/ORKStep.h>
 #import <ResearchKit/ORKQuestionStep.h>
 #import <ResearchKit/ORKInstructionStep.h>
+#import <ResearchKit/ORKCompletionStep.h>
 #import <ResearchKit/ORKFormStep.h>
 #import <ResearchKit/ORKStepNavigationRule.h>
 #import <ResearchKit/ORKImageCaptureStep.h>
+#import <ResearchKit/ORKReviewStep.h>
 #import <ResearchKit/ORKWaitStep.h>
 
 #import <ResearchKit/ORKAnswerFormat.h>
@@ -51,6 +53,7 @@
 #import <ResearchKit/ORKTaskViewController.h>
 #import <ResearchKit/ORKStepViewController.h>
 #import <ResearchKit/ORKFormStepViewController.h>
+#import <ResearchKit/ORKWaitStepViewController.h>
 
 #import <ResearchKit/ORKConsentDocument.h>
 #import <ResearchKit/ORKConsentSignature.h>
@@ -71,6 +74,7 @@
 
 #import <ResearchKit/ORKRecorder.h>
 #import <ResearchKit/ORKActiveStep.h>
+#import <ResearchKit/ORKCountdownStep.h>
 #import <ResearchKit/ORKActiveStepViewController.h>
 
 #import <ResearchKit/ORKDataCollectionManager.h>
